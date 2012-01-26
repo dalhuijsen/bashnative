@@ -3,7 +3,7 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
-# @Usage:  rand_element SPACE SEPERATED LIST will return one element from that list
+# @Usage:  rand_element SPACE SEPARATED LIST will return one element from that list
 # @Depends: bashnative/rand
 
 function rand_element () {
