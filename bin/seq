@@ -19,3 +19,5 @@ seq () {
         echo $((fr ${offs}))
     done
 }
+
+seq $1 $2
