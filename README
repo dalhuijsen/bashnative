@@ -1,0 +1,9 @@
+bashnative - native bash implementations of common utilities and functions
+Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+This program is distributed under the terms of the GNU General Public License
+(GPLv3) as published by the Free Software Foundation. <http://gnu.org/licenses/> 
+bin/seq                   print a sequence of numbers
+function/rand             generate a random number from 0 to argument
+function/rand_element     pick a random element from a space separated list
+
+
