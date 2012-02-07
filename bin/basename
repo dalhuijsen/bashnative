@@ -18,14 +18,14 @@ echo "Usage: basename NAME [SUFFIX]
 Print NAME with any leading directory components removed.
 If specified, also remove a trailing SUFFIX.
 
-		-h
+      -h
       --help     display this help and exit
 
 Examples:
   basename /usr/bin/sort       Output \"sort\".
   basename include/stdio.h .h  Output \"stdio\".
 
-Port of GNU-basename in bash, part of bashnative.
+Port of GNU-basename, written in bash, part of bashnative.
 Report basename bugs at https://github.com/dalhuijsen/bashnative"
 }
 if [[ -z "$*" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
