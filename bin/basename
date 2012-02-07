@@ -1,0 +1,35 @@
+#!/bin/bash
+# bashnative/basename - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation. 
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+basnam () { 
+	if [[ -z "$2" ]]; then
+		echo ${1##*/}
+	else
+		BN="${1##*/}"
+		echo ${BN%%$2}
+	fi
+}
+helpmsg () {
+echo "Usage: basename NAME [SUFFIX]
+  or:  basename OPTION
+Print NAME with any leading directory components removed.
+If specified, also remove a trailing SUFFIX.
+
+		-h
+      --help     display this help and exit
+
+Examples:
+  basename /usr/bin/sort       Output \"sort\".
+  basename include/stdio.h .h  Output \"stdio\".
+
+Port of GNU-basename in bash, part of bashnative.
+Report basename bugs at https://github.com/dalhuijsen/bashnative"
+}
+if [[ -z "$*" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+	helpmsg
+else
+	basnam $*
+fi
