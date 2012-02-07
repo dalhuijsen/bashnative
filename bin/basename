@@ -4,7 +4,7 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
-basnam () { 
+basename () { 
 	if [[ -z "$2" ]]; then
 		echo ${1##*/}
 	else
@@ -31,5 +31,5 @@ Report basename bugs at https://github.com/dalhuijsen/bashnative"
 if [[ -z "$*" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	helpmsg
 else
-	basnam $*
+	basename $*
 fi
