@@ -5,9 +5,9 @@
 
 basename () { 
 	if [[ -z "$2" ]]; then
-		echo ${1##*/}
+		echo ${1##*/}	# THE ENGINE
 	else
-		BN="${1##*/}"
-		echo ${BN%%$2}
+		BN="${1##*/}"  # SAME BUT WITH
+		echo ${BN%%$2} # SUFFIX ;)
 	fi
 }
