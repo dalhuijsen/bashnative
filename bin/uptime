@@ -37,21 +37,52 @@ uptime () {
 
 loadavg () {
 	RV=                       # Return Value
-	if [[ -r /proc/loadavg ]]; then
+	if [[ ! -r /proc/loadavg ]]; then
+		echo "0, 0, 0"
+	else
 		LA="$(</proc/loadavg)"
 		LA="${LA:0:14}"
 		LA="${LA// /, }"
 		echo $LA
-	else
-		echo "0, 0, 0"
 	fi
 }
 
+currenttime () {
+	if [[ ! -r /proc/stat ]] || [[ ! -r /proc/uptime ]]; then
+		echo "00:00:00"
+	else
+		# 1970-01-01 00:00:00 UTC
+		RV=								# returnval
+		DA=$(( 60 * 60 * 24 ))		# days
+		HO=$(( 60 * 60 ))				# hours 
+   	UT="$(</proc/uptime)"		# uptime
+	   UT=${UT%%.*}
+		BT=0								# boottime
+		F=0								# found
+		for X in $(</proc/stat); do # when found btime take next value
+			if [[ "$X" == "btime" ]]; then
+				F=1
+			else
+				if (( F > 0 )); then
+					BT="$X"
+					F=0
+				fi
+			fi
+		done
+		TT="$(( BT + UT ))"
+		TT="$(( TT % DA ))"
+		TH="$(( TT / HO ))"
+		TT="$(( TT % HO ))"
+		TM="$(( TT / 60 ))"
+		TT="$(( TT % 60 ))"
+		echo "${TH}:${TM}:${TT}"
+	fi
+}
 if [[ ! -r /proc/uptime ]]; then
    echo "uptime: Couldn't read /proc/uptime! Exiting." >&2
    exit -1
 else
-	TIME="00:00:00"
+	TIME="$(currenttime)"
 	UPTIME="$(uptime)"
 	USERS="0"
 	LOAD="$(loadavg)"
