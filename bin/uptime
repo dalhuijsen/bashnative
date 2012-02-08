@@ -1,0 +1,61 @@
+#!/bin/bash
+# bashnative/uptime - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation. 
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+
+
+uptime () {
+   RV=								# Return Value
+   RT="$(</proc/uptime)"		# RawTime, Remaining Time
+   DA="$(( 24 * 60 * 60 ))" 	# Days
+   HR="$(( 60 * 60 ))"			# Hours
+   RT=${RT%%.*}
+   TD=$(( RT / DA ))				# Time in Days
+   RT=$(( RT % DA ))
+   TH=$(( RT / HR ))				# Time in Hours
+   RT=$(( RT % HR ))
+   TM=$(( RT / 60 ))				# Time in Minutes
+   RT=$(( RT % 60 ))				# Seconds left ;-)
+   
+	if (( TD > 0 )); then
+	   RV="${TD} day"
+   	if (( TD > 1 )) ; then
+   		RV="${RV}s"
+	   fi
+	fi
+   if (( TH < 10 )); then
+   	TH="0${TH}"
+   fi
+   if (( TM < 10 )); then
+   	TM="0${TM}"
+   fi
+   RV="${RV}, ${TH}:${TM}"
+   echo $RV
+}
+
+loadavg () {
+	RV=                       # Return Value
+	if [[ -r /proc/loadavg ]]; then
+		LA="$(</proc/loadavg)"
+		LA="${LA:0:14}"
+		LA="${LA// /, }"
+		echo $LA
+	else
+		echo "0, 0, 0"
+	fi
+}
+
+if [[ ! -r /proc/uptime ]]; then
+   echo "uptime: Couldn't read /proc/uptime! Exiting." >&2
+   exit -1
+else
+	TIME="00:00:00"
+	UPTIME="$(uptime)"
+	USERS="0"
+	LOAD="$(loadavg)"
+ 	echo " ${TIME} up ${UPTIME}, ${USERS} users,   load average: ${LOAD}"
+	/usr/bin/uptime
+fi
+
