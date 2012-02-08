@@ -3,10 +3,12 @@ Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
 This program is distributed under the terms of the GNU General Public License
 (GPLv3) as published by the Free Software Foundation. <http://gnu.org/licenses/> 
 
-# Executables (stuff you can run as drop in replacements)
+# Executables (stuff you can run as somewhat drop in replacements)
 #############################################################################
 bin/basename              strip directory and suffix from filenames
+bin/cat                   concatenate files and print on the standard output
 bin/seq                   print a sequence of numbers
+bin/uptime                tell how long the system has been running
 
 
 # Separate functions (just the bare functions, no shebang included)
