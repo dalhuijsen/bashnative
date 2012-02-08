@@ -5,6 +5,23 @@
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
 
+main () {
+	if [[ ! -r /proc/uptime ]]; then
+	   echo "uptime: Couldn't read /proc/uptime! Exiting." >&2
+	   exit -1
+	else
+		TIME="$(currenttime)"
+		UPTIME="$(uptime)"
+		USERS="0"
+		LOAD="$(loadavg)"
+	 	echo " ${TIME} up ${UPTIME}, ${USERS} users,  load average: ${LOAD}"
+		/usr/bin/uptime
+	fi
+}
+
+currenttime () {
+	printf "%(%H:%M:%S)T" -1
+}
 
 uptime () {
    RV=								# Return Value
@@ -25,13 +42,17 @@ uptime () {
    		RV="${RV}s"
 	   fi
 	fi
-   if (( TH < 10 )); then
-   	TH="0${TH}"
-   fi
-   if (( TM < 10 )); then
-   	TM="0${TM}"
-   fi
-   RV="${RV}, ${TH}:${TM}"
+	if (( TH > 0 )); then
+	   if (( TH < 10 )); then
+   		TH="0${TH}"
+  	 	fi
+	   if (( TM < 10 )); then
+   		TM="0${TM}"
+ 	  	fi
+   	RV="${RV}, ${TH}:${TM}"
+	else
+		RV="${RV}, ${TM} min"
+	fi
    echo $RV
 }
 
@@ -47,46 +68,48 @@ loadavg () {
 	fi
 }
 
-currenttime () {
-	if [[ ! -r /proc/stat ]] || [[ ! -r /proc/uptime ]]; then
-		echo "00:00:00"
-	else
-		# 1970-01-01 00:00:00 UTC
-		RV=								# returnval
-		DA=$(( 60 * 60 * 24 ))		# days
-		HO=$(( 60 * 60 ))				# hours 
-   	UT="$(</proc/uptime)"		# uptime
-	   UT=${UT%%.*}
-		BT=0								# boottime
-		F=0								# found
-		for X in $(</proc/stat); do # when found btime take next value
-			if [[ "$X" == "btime" ]]; then
-				F=1
-			else
-				if (( F > 0 )); then
-					BT="$X"
-					F=0
-				fi
-			fi
-		done
-		TT="$(( BT + UT ))"
-		TT="$(( TT % DA ))"
-		TH="$(( TT / HO ))"
-		TT="$(( TT % HO ))"
-		TM="$(( TT / 60 ))"
-		TT="$(( TT % 60 ))"
-		echo "${TH}:${TM}:${TT}"
-	fi
-}
-if [[ ! -r /proc/uptime ]]; then
-   echo "uptime: Couldn't read /proc/uptime! Exiting." >&2
-   exit -1
-else
-	TIME="$(currenttime)"
-	UPTIME="$(uptime)"
-	USERS="0"
-	LOAD="$(loadavg)"
- 	echo " ${TIME} up ${UPTIME}, ${USERS} users,   load average: ${LOAD}"
-	/usr/bin/uptime
-fi
 
+
+
+main
+
+
+
+
+
+
+
+
+# I JUST DIDN'T HAVE THE HEART TO CHUCK THIS OUT :-/
+# ADMIT IT, BELOW LOOKS WAY COOLER THAN 'printf "%(%H:%M:%S)T" -1' ;)
+#currenttime () {
+#	if [[ ! -r /proc/stat ]] || [[ ! -r /proc/uptime ]]; then
+#		echo "00:00:00"
+#	else
+#		# 1970-01-01 00:00:00 UTC
+#		RV=								# returnval
+#		DA=$(( 60 * 60 * 24 ))		# days
+#		HO=$(( 60 * 60 ))				# hours 
+#   	UT="$(</proc/uptime)"		# uptime
+#	   UT=${UT%%.*}
+#		BT=0								# boottime
+#		F=0								# found
+#		for X in $(</proc/stat); do # when found btime take next value
+#			if [[ "$X" == "btime" ]]; then
+#				F=1
+#			else
+#				if (( F > 0 )); then
+#					BT="$X"
+#					F=0
+#				fi
+#			fi
+#		done
+#		TT="$(( BT + UT ))"
+#		TT="$(( TT % DA ))"
+#		TH="$(( TT / HO ))"
+#		TT="$(( TT % HO ))"
+#		TM="$(( TT / 60 ))"
+#		TT="$(( TT % 60 ))"
+#		echo "${TH}:${TM}:${TT}"
+#	fi
+#}
