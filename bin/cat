@@ -4,38 +4,79 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
+exec 3<&0   
+LINENUM=0
+
 main () {
-   if [[ -n "$*" ]]; then
-      cat_arguments "$*"
+   if [[ -n "$@" ]]; then
+      cat_arguments "$@"
    else
-      cat_stdin
+      cat_stdin | cat_output_filter
    fi
 }
 
 
 cat_arguments () {
-   for FILE in $*; do
+   ACTED=0  # checks if something has been catted yet
+   X=0      # loops through positional parameters
+   while (( X++ < ${#} )); do
+      FILE="${!X}"
       if [[ "$FILE" == "--help" ]] || [[ "$FILE" == "-h" ]]; then
          helpmsg
          exit
+      elif [[ "$FILE" == "-n" ]] || [[ "$FILE" == "--number" ]]; then
+         OUTPUTFILTER=numberlines
       elif [[ "$FILE" == "-" ]]; then
-         cat_stdin
+         cat_stdin | cat_output_filter
+         ACTED=1
       elif [[ -r "$FILE" ]]; then
-         cat_file "$FILE"
+         cat_file "$FILE" | cat_output_filter
+         ACTED=1
       elif [[ -e "$FILE" ]]; then
          echo "cat: ${FILE}: Permission denied" >&2
       else 
          echo "cat: ${FILE}: No such file or directory" >&2
       fi
    done
+   if [[ "$ACTED" == "0" ]]; then
+     cat_stdin | cat_output_filter
+   fi
 }
 
 cat_stdin () { 
-   echo "$(</dev/stdin)"
+   local IFS="\n"
+   while read line; do
+      echo "$line"
+   done <&3
 }
 
 cat_file () {
-   echo "$(<${1})"
+   local IFS="\n"
+   while read line; do
+      echo "$line"
+   done <${1}
+}
+
+cat_output_filter () {
+   local IFS="\n"
+   if [[ -n "$OUTPUTFILTER" ]]; then
+      case "$OUTPUTFILTER" in
+         "numberlines")
+         cat_filter_linenum <&0
+         ;;
+      esac
+   else
+      while read line; do
+         echo "$line"
+      done <&0
+   fi
+}
+
+cat_filter_linenum () {
+   local IFS="\n"
+   while read line; do
+      echo "$(( ++LINENUM )) $line"
+   done <&0
 }
 
 
@@ -44,14 +85,14 @@ echo "Usage: cat [OPTION]... [FILE]...
 Concatenate FILE(s), or standard input, to standard output.
 
       --help     display this help and exit
+  -n, --number   number all output lines
 
 With no FILE, or when FILE is -, read standard input.
 
 Examples:
   cat f - g  Output f's contents, then standard input, then g's contents.
   cat        Copy standard input to standard output.
-
 "
 }
 
-main $*
+main "$@"
