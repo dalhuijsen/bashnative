@@ -15,8 +15,8 @@ main () {
       if [[ ${!X:0:7} == "--date=" ]]; then
          INPUTTIME="${!X:7}"
       elif [[ ${!X} == "-d" ]]; then
-			X=$(( X + 1 ))
-			INPUTTIME="${!X}"
+         X=$(( X + 1 ))
+         INPUTTIME="${!X}"
       fi
 
       if [[ ${!X} == "--help" ]] || [[ ${!X} == "-h" ]]; then
