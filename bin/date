@@ -1,0 +1,19 @@
+#!/bin/bash
+# bashnative/seq - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation. 
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+main () {
+	X=0
+	while (( X++ < ${#} )); do
+		if [[ ${!X:0:1} == "+" ]]; then #starts with a plus outformat is set
+			OUTFORMAT="${!X:1}"
+		fi
+	done
+	
+	printf "%(${OUTFORMAT:-"%x %X"})T" ${INPUTTIME:-"-1"}
+}
+
+
+main "$@"
