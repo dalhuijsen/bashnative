@@ -1,5 +1,5 @@
 #!/bin/bash
-# bashnative/seq - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# bashnative/date - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
 # This program is distributed under the terms of the GNU General Public License
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
@@ -8,7 +8,7 @@ main () {
    X=0
    while (( X++ < ${#} )); do
 
-      if [[ ${!X:0:1} == "+" ]]; then #starts with a plus outformat is set
+      if [[ ${!X:0:1} == "+" ]]; then 
          OUTFORMAT="${!X:1}"
       fi
 
@@ -34,7 +34,7 @@ main () {
 
 helpmsg () {
 echo "Usage: ${0##*/} [OPTION]... [+FORMAT]
-Display the current time in the given FORMAT
+Displays [the current] time in the given FORMAT
 
   -d, --date=UTIME          display time described by UTIME, not 'now'
   -h, --help                display this help and exit
