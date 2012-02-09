@@ -10,10 +10,10 @@ main () {
       if [[ ${!X:0:1} == "+" ]]; then 
          OUTFORMAT="${!X:1}"
       fi
-      elif [[ ${!X} == "-d" ]]; then
+      if [[ ${!X} == "-d" ]]; then
          X=$(( X + 1 ))
          INPUTTIME="${!X}"
-      if [[ ${!X:0:7} == "--date=" ]]; then
+      elif [[ ${!X:0:7} == "--date=" ]]; then
          INPUTTIME="${!X:7}"
       fi
       if [[ ${!X} == "--help" ]] || [[ ${!X} == "-h" ]]; then
