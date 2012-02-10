@@ -1,0 +1,5 @@
+bashnative:mac-compat - A BSD/OSX compatible version of the bashnative ports running on GNU bash version >= 3.2
+
+BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO:BUGS-TODO: 
+bin/date 	remove printf from currenttime function and replace it with some, yet to be found :p, alternative
+
