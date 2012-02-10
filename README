@@ -3,10 +3,13 @@ Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
 This program is distributed under the terms of the GNU General Public License
 (GPLv3) as published by the Free Software Foundation. <http://gnu.org/licenses/> 
 
+
+
 # Executables (stuff you can run as somewhat drop in replacements)
 #############################################################################
 bin/basename              strip directory and suffix from filenames
 bin/cat                   concatenate files and print on the standard output
+bin/date                  Displays time in the given FORMAT
 bin/seq                   print a sequence of numbers
 bin/uptime                tell how long the system has been running
 
@@ -17,4 +20,8 @@ function/basename         strip directory and suffix from filenames
 function/rand             generate a random number from 0 to argument
 function/rand_element     pick a random element from a space separated list
 
+
+# WARNING/PREREQUISITES (Anything less or different prolly won't work :p
+# GNU bash, version >= 4.2.10  <== That means no to you osX yuppies out there
+# LiNUX (any distro should do as long as it has a working /proc)
 
