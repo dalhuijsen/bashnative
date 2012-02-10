@@ -72,7 +72,7 @@ runtest () {
 		echo "Test #${DOTESTNUM}	found, performing test_${1}:"
 		test_${1}
 		if [[ ! ${?} == 0 ]]; then
-			echo -e "\e[1mERROR:\e[0m Test #${DOTESTNUM}: \"test_${1}\" failed with exitcode ${?}, please check above for details." >&2
+			echo -e "\033[1mERROR:\033[0m Test #${DOTESTNUM}: \"test_${1}\" failed with exitcode ${?}, please check above for details." >&2
 			exit 1
 		else
 			echo "Test #${DOTESTNUM}	test_${1} succeeded!"
