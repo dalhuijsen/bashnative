@@ -1,0 +1,24 @@
+#!/bin/bash
+echo BASENAME Starting ../bin/basename test
+
+if [[ ! -e ../bin/basename ]]; then
+	echo "BASENAME ERROR Can't find ../bin/basename!" >&2
+	exit 1
+fi
+
+TEST=$(../bin/basename /test/this/path.sh)
+if [[ ! "$TEST" == "path.sh" ]]; then
+	echo "BASENAME FAILED test on basename(/test/this/path.sh) == path.sh" >&2
+	exit 1
+fi
+
+TEST=$(../bin/basename /test/this/path.sh .sh)
+if [[ ! "$TEST" == "path" ]]; then
+	echo "BASENAME FAILED test on basename(/test/this/path.sh .sh) == path" >&2
+	exit 1
+fi
+
+
+echo "BASENAME COMPLETED Finished all tests successfully."
+exit 0
+
