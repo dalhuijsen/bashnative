@@ -4,6 +4,9 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
+# FIXME: THIS DOESN't WORK IN BASH3!!! printf DOESNT SUPPORT THIS KINKY FORMAT
+# IN OTHER WORDS: U SUCK, THIS IS NOT MACINTOSH COMPATIBLE!!!
+# FIND WORKAROUND VIA PS OR SOMETHING :-P
 main () {
    X=0
    while (( X++ < ${#} )); do
