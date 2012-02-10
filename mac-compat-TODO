@@ -1,0 +1,16 @@
+UM, so multiple versions?  mergin strategy? whattodooo?
+Use the lowest common denominator for everything?
+Installer that creates the right versions of the progs for that environment?
+Modular functions in libfiles that switch when env changes?
+Programs that switch to the most optimal settings for their runtime env?
+
+what do does i prefer???? Portability vs elegance vs speed vs prechecking vs ....
+
+
+*mutter* 
+
+feelin' bloat coming on already...
+
+nice idea though..
+
+pfah, mac-compat indeed :P
