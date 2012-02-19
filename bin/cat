@@ -4,6 +4,8 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
+## WARNING!!! NOT BINARY SAFE, ONLY USE ON NEWLINE ENDING STRAIGHT ASCII FILES FOR NOW!
+
 exec 3<&0   
 LINENUM=0
 
