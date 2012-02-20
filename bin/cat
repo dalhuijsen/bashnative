@@ -6,6 +6,8 @@
 
 exec 3<&0   
 LINENUM=0
+OUTPUTFILTER=
+
 
 main () {
    if [[ -n "$@" ]]; then
@@ -54,7 +56,7 @@ cat_file () {
    local IFS="\n"
    while read line; do
       echo "$line"
-   done <${1}
+   done <"${1}"
 }
 
 cat_output_filter () {
