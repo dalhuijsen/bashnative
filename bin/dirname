@@ -1,0 +1,16 @@
+#!/bin/bash
+# bashnative/dirname - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation. 
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+CHECKFILE="${1}"
+#remove trailing slash if exists
+if [[ "${CHECKFILE:$(( ${#CHECKFILE} - 1))}" == "/" ]]; then
+	CHECKFILE="${CHECKFILE:0:$(( ${#CHECKFILE} - 1))}"
+fi
+DIRECTORY="${CHECKFILE%/*}"
+if [[ "$DIRECTORY" == "$CHECKFILE" ]]; then
+	# hmm, is the same, file must be in CWD
+	DIRECTORY="."
+fi
+echo $DIRECTORY
