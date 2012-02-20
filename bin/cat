@@ -56,7 +56,7 @@ cat_file () {
    local IFS="\n"
    while read line; do
       echo "$line"
-   done <${1}
+   done <"${1}"
 }
 
 cat_output_filter () {
