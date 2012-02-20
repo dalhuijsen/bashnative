@@ -4,6 +4,8 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
+# WARNING: this thing is probably not binary safe ;)
+
 exec 3<&0   
 LINENUM=0
 OUTPUTFILTER=
@@ -101,6 +103,8 @@ cat_filter_linenum () {
 helpmsg () {
 echo "Usage: cat [OPTION]... [FILE]...
 Concatenate FILE(s), or standard input, to standard output.
+Warning: probably only works for text files
+
 
       --help     display this help and exit
   -n, --number   number all output lines
