@@ -24,4 +24,7 @@ function/rand_element     pick a random element from a space separated list
 # WARNING/PREREQUISITES (Anything less or different prolly won't work :p
 # GNU bash, version >= 4.2.10  <== That means no to you osX yuppies out there
 # LiNUX (any distro should do as long as it has a working /proc)
+# EVEN MORE WARNING: all of this probably does NOT hold up to its realworld c counterparts.
+# that said, let me know any and all bugs.. most of these are joke implementations, but who knows,
+# one day,... :-)
 
