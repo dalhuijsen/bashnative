@@ -15,7 +15,6 @@ main () {
       USERS="0"
       LOAD="$(loadavg)"
        echo " ${TIME} up ${UPTIME}, ${USERS} users,  load average: ${LOAD}"
-      /usr/bin/uptime
    fi
 }
 

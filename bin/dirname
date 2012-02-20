@@ -13,4 +13,8 @@ if [[ "$DIRECTORY" == "$CHECKFILE" ]]; then
 	# hmm, is the same, file must be in CWD
 	DIRECTORY="."
 fi
+if [[ -z "$DIRECTORY" ]]; then
+	#empty? must've hit root
+	DIRECTORY="/"
+fi
 echo $DIRECTORY
