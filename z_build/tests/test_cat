@@ -1,0 +1,10 @@
+#!/bin/bash 
+testfile=/tmp/test_cat.txt
+for x in tests/cat_testfiles/*; do
+	echo trying cat $x \> $testfile
+	../bin/cat $x > $testfile
+	md5sum $x
+	md5sum $testfile
+
+done
+
