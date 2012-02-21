@@ -9,8 +9,10 @@ This program is distributed under the terms of the GNU General Public License
 #############################################################################
 bin/basename              strip directory and suffix from filenames
 bin/cat                   concatenate files and print on the standard output
-bin/date                  Displays time in the given FORMAT
+bin/date                  displays time in the given FORMAT
+bin/dirname               strip last component from file name
 bin/seq                   print a sequence of numbers
+bin/true                  do nothing, successfully
 bin/uptime                tell how long the system has been running
 
 
