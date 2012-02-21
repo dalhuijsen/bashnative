@@ -9,8 +9,10 @@ This program is distributed under the terms of the GNU General Public License
 #############################################################################
 bin/basename              strip directory and suffix from filenames
 bin/cat                   concatenate files and print on the standard output
-bin/date                  Displays time in the given FORMAT
+bin/date                  displays time in the given FORMAT
+bin/dirname               strip last component from file name
 bin/seq                   print a sequence of numbers
+bin/true                  do nothing, successfully
 bin/uptime                tell how long the system has been running
 
 
@@ -24,4 +26,7 @@ function/rand_element     pick a random element from a space separated list
 # WARNING/PREREQUISITES (Anything less or different prolly won't work :p
 # GNU bash, version >= 4.2.10  <== That means no to you osX yuppies out there
 # LiNUX (any distro should do as long as it has a working /proc)
+# EVEN MORE WARNING: all of this probably does NOT hold up to its realworld c counterparts.
+# that said, let me know any and all bugs.. most of these are joke implementations, but who knows,
+# one day,... :-)
 

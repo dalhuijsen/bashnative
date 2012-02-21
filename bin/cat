@@ -1,11 +1,15 @@
-#!/bin/bash
+#!/bin/bash 
 # bashnative/cat - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
 # This program is distributed under the terms of the GNU General Public License
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
+# WARNING: this thing is probably not binary safe ;)
+
 exec 3<&0   
 LINENUM=0
+OUTPUTFILTER=
+
 
 main () {
    if [[ -n "$@" ]]; then
@@ -34,8 +38,10 @@ cat_arguments () {
          ACTED=1
       elif [[ -e "$FILE" ]]; then
          echo "cat: ${FILE}: Permission denied" >&2
+         ACTED=1
       else 
          echo "cat: ${FILE}: No such file or directory" >&2
+         ACTED=1
       fi
    done
    if [[ "$ACTED" == "0" ]]; then
@@ -45,16 +51,22 @@ cat_arguments () {
 
 cat_stdin () { 
    local IFS="\n"
-   while read line; do
-      echo "$line"
-   done <&3
+	if [[ -t 3 ]]; then
+	   while read line; do
+   	   echo "$line"
+	   done <&3
+	else
+	   while read -N 1 line; do
+   	   echo -n "$line"
+	   done <&3
+	fi
 }
 
 cat_file () {
    local IFS="\n"
-   while read line; do
-      echo "$line"
-   done <${1}
+   while read -N 1 line; do
+      echo -n "$line"
+   done <"${1}"
 }
 
 cat_output_filter () {
@@ -66,23 +78,33 @@ cat_output_filter () {
          ;;
       esac
    else
-      while read line; do
-         echo "$line"
+      while read -N 1 line; do
+         printf "%s" "$line"
+#         echo -n "$line"
       done <&0
    fi
 }
 
 cat_filter_linenum () {
    local IFS="\n"
-   while read line; do
-      echo "$(( ++LINENUM )) $line"
+	echo -n "$(( ++LINENUM )) "
+   while read -N 1 line; do
+		if [[ "$line" == "\n" ]]; then
+	      echo -n "$line$(( ++LINENUM )) "
+		else
+			echo -n "$line"
+		fi
+		export LINENUM
    done <&0
+	export LINENUM
 }
 
 
 helpmsg () {
 echo "Usage: cat [OPTION]... [FILE]...
 Concatenate FILE(s), or standard input, to standard output.
+Warning: probably only works for text files
+
 
       --help     display this help and exit
   -n, --number   number all output lines

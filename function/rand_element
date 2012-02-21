@@ -6,11 +6,9 @@
 # @Usage:  rand_element SPACE SEPARATED LIST will return one element from that list
 # @Depends: bashnative/rand
 
-function rand_element () {
-    local TH;
-    for x in "$@"; do
-        TH[${#TH[*]}]="$x";
-    done
-    unset TH[0]
-    echo -n "${TH[$(($(rand "${#TH[*]}")+1))]}"
+rand_element () {
+    local -a th=("$@")
+    unset th[0]
+    printf $'%s\n' "${th[$(($(rand "${#th[*]}")+1))]}"
 }
+

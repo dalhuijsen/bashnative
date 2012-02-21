@@ -5,6 +5,7 @@
 
 # @Usage:  rand INTEGER will return a random number between 0 and INTEGER
 # @Depends: none
-function rand () {
-	echo -n "$((  $(( ${1} * $(( $(( RANDOM * 100 )) / 32767 )) )) / 100 ))"
+rand() {
+	printf $((  $1 *  RANDOM  / 32767   ))
 }
+
