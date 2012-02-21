@@ -86,10 +86,12 @@ cat_output_filter () {
 }
 
 cat_filter_linenum () {
+#	set -x
    local IFS="\n"
 	echo -n "$(( ++LINENUM )) "
    while read -N 1 line; do
-		if [[ "$line" == "\n" ]]; then
+		if [[ "$line" == "
+" ]]; then
 	      echo -n "$line$(( ++LINENUM )) "
 		else
 			echo -n "$line"
