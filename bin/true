@@ -3,4 +3,18 @@
 # This program is distributed under the terms of the GNU General Public License
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+if [[ "$1" == "--help" ]]; then
+echo "
+Usage: /bin/true [ignored command line arguments]
+  or:  /bin/true OPTION
+Exit with a status code indicating success.
+
+      --help     display this help and exit
+
+NOTE: your shell may have its own version of true, which usually supersedes
+the version described here.  Please refer to your shell's documentation
+for details about the options it supports.
+"
+fi
 exit 0
