@@ -1,0 +1,7 @@
+WOWOWOOOOAAHAHAHHAAHAAAAAA
+lets make it work with the default git-bash on win32
+
+GNU bash, version 3.1.0(1)-release (i686-pc-msys)
+Copyright (C) 2005 Free Software Foundation, Inc.
+
+
