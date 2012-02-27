@@ -1,0 +1,53 @@
+#################################################
+# bashnative/TODO:  Wishlist of programs to port 
+#################################################
+PACKAGE: common package name of program (plus tarbal if available)
+DESCRIPTION: short description
+AVAILABLE: whats in the package
+TODO: primary suspects
+DONE: implemented in some state
+IMPOSSIBLE: deamed undoable by this programmer
+
+PACKAGE: coreutils coreutils.8.10.tar.gz
+DESCRIPTION: GNU core utilities
+AVAILABLE: base64 basename cat chcon chgrp chmod chown chroot cksum comm cp csplit cut date dd df dir dircolors dirname du echo env expand expr factor false fmt fold groups head hostid hostname id install join link ln logname ls md5sum mkdir mkfifo mknod mktemp mv nice nl nohup od paste pathchk pinky pr printenv printf ptx pwd readlink rm rmdir runcon seq sha1sum sha224sum sha256sum sha384sum sha512sum shred shuf sleep sort split stat stdbuf stty sum sync tac tail tee test [ timeout touch tr true truncate tsort tty uname unexpand uniq unlink users vdir wc who whoami yes
+TODO:
+DONE:
+IMPOSSIBLE:
+
+PACKAGE: sysvinit sysvinit-2.888dsf.tar.bz2
+DESCRIPTION: System V style init
+AVAILABLE: init halt shutdown runlevel killall5 fstab-decode
+TODO: 
+DONE: 
+IMPOSSIBLE: 
+
+PACKAGE: util-linux util-linux-2.19.tar.bz2 (text-utils)
+DESCRIPTION: random collection of linux utilities (text-utils)
+AVAILABLE: tail clear more ul hexdump col rev  more 
+TODO: 
+DONE: 
+IMPOSSIBLE: 
+
+
+PACKAGE: util-linux util-linux-2.19.tar.bz2 (sys-utils)
+DESCRIPTION: random collection of linux utilities (sys-utils)
+AVAILABLE: ctrlaltdel dmesg arch rtcwake lscpu unshare cytune setarch switch_root fallocate flock fstrim fsfreeze ipcs ipcmk ipcrm ldattach pivot_root readprofile renice setsid tunelp
+TODO: 
+DONE: 
+IMPOSSIBLE: 
+
+PACKAGE: util-linux util-linux-2.19.tar.bz2
+DESCRIPTION: random collection of linux utilities
+AVAILABLE: 
+TODO: 
+DONE: 
+IMPOSSIBLE: 
+
+###### Template ;)
+PACKAGE: 
+DESCRIPTION: 
+AVAILABLE: 
+TODO: 
+DONE: 
+IMPOSSIBLE: 
