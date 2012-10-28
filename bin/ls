@@ -9,5 +9,5 @@
 # BUGS:
 # \r\n ending files (weird ones) do not work with -n option
 for x in "$(echo {.,}*)"; do
-echo $x
+echo "$x"
 done
