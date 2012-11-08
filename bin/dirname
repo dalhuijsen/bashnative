@@ -17,4 +17,4 @@ if [[ -z "$DIRECTORY" ]]; then
 	#empty? must've hit root
 	DIRECTORY="/"
 fi
-echo $DIRECTORY
+echo "$DIRECTORY"
