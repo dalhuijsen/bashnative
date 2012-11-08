@@ -1,0 +1,14 @@
+#!/bin/bash
+find () {
+if [[ -d "$1" ]]; then
+	for x in $1/*; do
+		if [[ -d "$x" ]]; then
+			find "$x"
+		else
+			echo "$x"
+		fi
+	done
+fi
+}
+
+find "$@"

@@ -15,4 +15,4 @@ seq () {
     done
 }
 
-seq $1 $2
+( [[ -n "$2" ]] && seq $1 $2 ) || echo Usage: seq \<start\> \<end\>
