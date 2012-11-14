@@ -1,4 +1,19 @@
 #!/bin/bash 
+main () {
+if [[ -z "$1" ]]; then 
+printdir
+exit
+fi
+while [[ -n "$1" ]]; do
+pushd "$1"
+printdir
+popd
+shift
+done
+}
+printdir () {
 for x in $(echo {.,}*); do
 echo "$x"
 done
+}
+main "$@"
