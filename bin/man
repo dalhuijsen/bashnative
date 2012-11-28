@@ -1,0 +1,47 @@
+#!/bin/bash
+# not even close to man document catter
+cat /usr/share/man/man1/bash*
+# maybe, one day, but for now
+exit 0
+MANDIRS=/usr/share/man
+main () {
+	echo "$0"
+	if [[ -z "$1" ]]; then 
+		echo "What manual page do you want?"
+		exit 1 
+	fi
+	#todo: basic apropos/whatis support
+	do_man "$@"
+}
+
+do_man () {
+	if [[ -n "$2" ]]; then
+		SECTION="$1"
+		QUERY="$2"
+	else
+		SECTION=
+		QUERY="$1"
+	fi
+	echo $MANDIRS/*${SECTION}/*${QUERY}*
+
+
+}
+
+do_apropos () {
+	echo propro
+}
+do_whatis () {
+	echo wutwut
+}
+
+
+
+
+
+
+
+
+
+
+
+main "$@"

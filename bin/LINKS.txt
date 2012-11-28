@@ -1,0 +1,7 @@
+#temp file to hold the linking logic for the chroot
+editor nano
+editor vim
+editor vi
+editor pico
+bash sh
+

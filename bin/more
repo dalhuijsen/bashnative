@@ -1,0 +1,18 @@
+#!/bin/bash
+more_file () {
+local IFS='
+'
+FILE=( $( < $1 ) )
+while (( X < ${#FILE[@]} )); do
+CL="$X"
+echo "${FILE[$X]}"
+if (( CL >= LINES -1 )); then
+echo -n "Press any key to continue. "
+read -n 1
+fi
+X=$(( X + 1 ))
+done
+
+}
+
+more_file "$@"
