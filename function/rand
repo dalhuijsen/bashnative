@@ -3,9 +3,15 @@
 # (GPLv3) as published by the Free Software Foundation. 
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
-# @Usage:  rand INTEGER will return a random number between 0 and INTEGER
+# @Usage:  rand INTEGER will return a random number in the range (0, INTEGER]
 # @Depends: none
+# 
+# The bash RANDOM variable returns a pseudorandom number in the range (0,32767)
+# -- 32768 distinct values.  Therefore, to ensure we get a number in the range
+# (0,INTEGER], we must ensure that integer division RANDOM / DIVISOR *never*
+# equals 1; Hence, we must use 32768 as the DIVISOR.
+# 
 rand() {
-	printf $((  $1 *  RANDOM  / 32767   ))
+    echo $(( $1 * RANDOM / 32768 ))
 }
 

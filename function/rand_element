@@ -5,10 +5,13 @@
 
 # @Usage:  rand_element SPACE SEPARATED LIST will return one element from that list
 # @Depends: bashnative/rand
-
+# 
+# Emits a pseudorandom selection of one of its arguments to standard output.  Args are put into the
+# array $th, and are enumerated beginning at index 0 to N-1; 'rand N' returns an appropriate index
+# in the range: (0,N]
+# 
 rand_element () {
     local -a th=("$@")
-    unset th[0]
-    printf $'%s\n' "${th[$(($(rand "${#th[*]}")+1))]}"
+    echo "${th[$( rand ${#th[@]} )]}"
 }
 

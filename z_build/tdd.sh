@@ -33,7 +33,7 @@
 # ## lol, now try the same, but remove the false.
 
 
-KNOWNTESTPROGS=${KNOWNTESTPROGS:-"basename cat date ps seq tr uptime"}
+KNOWNTESTPROGS=${KNOWNTESTPROGS:-"basename cat date ps seq tr uptime rand rand_element"}
 
 DOTESTNUM=0
 NOTESTNUM=0
@@ -96,8 +96,103 @@ test_false () {
 
 #functiontests
 
+test_rand () {
+    # 
+    # The function $( rand N ) must return a value in the range (0,N], and enforce a very lax test
+    # of random statistical distribution (increases allowed variance at the square of the difference
+    # in the order of count and range; in other words, the bigger the number of samples and hence
+    # counts in each range bucket, the smaller the allowed variance).  This is bash, not a
+    # cryptography library, after all, and we want to guarantee test success in all but the most
+    # extreme failures of pseudo-randomness.
+    # 
+    . ../function/rand
+    errors=0
+    verbose=1
+    range=10
+    count=10000
+    target=$(( count / range ))
+    order=$(( ${#count} - ${#range} ))		# poor-man's approx log base 10
+    variance=$(( target * 2 / order / order ))	# works fine for count >= range x 10
+    incidence=()
+    (( verbose )) \
+        && echo "Test rand: Testing $count samples in range (0,$range]; allowing max. variance $target +/- $variance ($(( variance * 100 / target ))%)"
+    for (( c = 0; c < count; ++c )); do
+        (( ++incidence[$( rand $range )] ))
+    done
+    if (( ${#incidence[@]} != range )); then
+        echo "Test rand: Unexpected number of distinct results; found ${#incidence[@]}, expected $range"
+        (( ++errors ))
+    fi
+    for (( i = 0; i < ${#incidence[@]}; ++i )); do
+        if (( i < 0 && i >= range )); then
+            echo "Test rand: Result $i outside range (0,$range]"
+            (( ++errors ))
+        elif (( incidence[i] < target - variance || incidence[i] > target + variance )); then 
+            echo "Test rand: Result $i incidence $(( incidence[i] )) is outside $target +/- $variance"
+            (( ++errors ))
+        fi
+        (( verbose > 1 || errors )) \
+            && printf "%3d: %6d %2d%%\n" $i ${incidence[$i]} $(( incidence[$i] * 100 / count ))
+    done
+    (( errors )) && return 1 || return 0
+}
 
+test_rand_element () {
+    # 
+    # The function $( rand_element "element1" "element2" ) returns a pseudo random choice of one of
+    # its arguments (each of which may contain whitespace).
+    # 
+    . ../function/rand
+    . ../function/rand_element
+    errors=0
+    verbose=1
+    range=10
+    count=10000
+    values=()
+    incidence=()
 
+    (( verbose )) \
+        && printf "Test rand_element: Testing %d samples of rand_element 'item%4d' ... 'item%4d'\n" $count 0 $(( range - 1 ))
+
+    # Where N=$range, construct "rand_element 'item    1' 'item    2' ... 'item    N-1'" command
+    for (( i = 0; i < range; ++i )); do
+        values[$i]=$( printf "item %4d" $i )
+    done
+    command="rand_element"
+    for (( i = 0; i < ${#values[@]}; ++i )); do
+        command="${command} '${values[$i]}'"
+    done
+    (( verbose > 1 )) \
+        && echo "Test $command"
+
+    # Invoke rand_element command $count times
+    for (( c = 0; c < count; ++c )); do
+        v=$( eval "$command" )
+        for (( i = 0; i < ${#values[@]}; ++i )); do
+            if [[ "$v" == "${values[$i]}" ]]; then
+                (( ++incidence[$i] ))
+            fi
+        done
+    done
+
+    # Ensure we recognized and enumerated each and every result
+    sum=0
+    for (( i = 0; i < ${#values[@]}; ++i )); do
+        if (( incidence[$i] == 0 )); then
+            echo "Test rand_item: Missing expected result $values[$i]"
+            (( ++errors ))
+        fi
+        (( verbose > 1 || errors )) \
+            && printf "%10s: %6d %2d%%%s\n" "${values[$i]}" ${incidence[$i]} $(( incidence[$i] * 100 / count ))
+        (( sum += incidence[$i] ))
+    done
+    if (( sum != count )); then
+        echo "Test rand_item: Unexpected total number of valid results; found $sum, expected $count"
+        (( ++errors ))
+    fi
+
+    (( errors )) && return 1 || return 0
+}
 
 
 
