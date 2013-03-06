@@ -1,81 +1,22 @@
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-o || ||____   ^^                                                                    
-o || '----.|  BASH-Native: The UNIX userland system, written in BASH!     |
-o ||______|| _____________________________________________________________|
-o '-------|| -------------------------------------------------------------'
-o-. _     ||  ^^                                 
-o '.   ... .   .^^.                                
-o ''   ' ''.  ..'..
--       '... .....                             ---------------------------
--       '... .....                              Copyright (C)2011-2013 GPL
--       '... .....                            ----------------------------   
--       '... .....                                
-o .__.____|| ....                             
-o |.-------' ...........                                                .
-o || .........^^.............                                        |
-o-'| .........^^.............                                         , '|.
-o--' .        ^^         ....        <<\\\\\\^^^^^6\----.          ,  '  |'
-o..... .---------------  ........       ==oo\\\>>\\\>\<\\.oooo 
-o..... '  LATEST NEWS  * ......,,,..          ooo\\\.                |.
-o    '----------==-.===" .,,.,,,,...                                    '|
-R                        ,...
-o             ^^         ..,,       SOMETHING WENT WRONG HERE        .||.
-o             ^^         ..,,                                          .||.
-o             ^^         ,,,,                                      '.|
-o  o Project status: 3% (Look at ^PROJECT STATUS below                   |'
-o             ^^         ,,,,                                     '   |
-o  o Latest milestone: Working CHROOT!!! wooooh (2012/09/13)          '|
-o             ^^         ,,,,                                        .|'
-o             ^^         ,,..                                       .|'
-o             ^^         ,...                                        | ..
-o             ^^         ....                                           '
-o             ^^         ....                                               '
-o             ^^         ........................,..,,,...                '
-o             ^^         ..................,,,,,,,,,,...,
-o             ^^                    ^^^^^^^^^^^^^^^^^^'
-o             ^^
-o             ^^
-o   .-----------------.
-o   | PROJECT STATUS: *
-o   '================="
-o             ^^
-o             ^^
-o             ^^
-o             ^^
-o             ^^
-o             ^^
-o             ^^
-o 
-o  
-o
-o
-o
-o 
-o 
-o 
-o 
-o 
-o 
-o 
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooov00v
-o bashnative - native bash implementations of common utilities and functions
-o Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
-o This program is distributed under the terms of the GNU General Public License
-o (GPLv3) as published by the Free Software Foundation. <http://gnu.org/licenses/> 
-o 
-o Goal is to provide a sort of busybox in bash. This to provide a minimum chroot 
-o filesystem, fake shell, whatever. mostly, of course, a proof of concept. :)
-o 
-o 
-o # WARNING/PREREQUISITES (Anything less or different prolly won't work :p )
-o # GNU bash, version >= 4.2.10  <== That means no to you osX yuppies out there
-# WARNING: all of this probably is not binary, or even ascii, safe.
 
+
+ **********************************************************
+ * BASH-Native: The UNIX userland system, written in BASH *
+ **********************************************************
+                                  Copyright(C)2011-2013 GPL
+
+
+ Project completion: ~ 3%
+ Latest milestone: Working CHROOT implementation. (*)
+
+
+
+ Project goals
+ 
+ BusyBox replacement: 5%;
+ CoreUtils replacement: 1%;
+
+
+ Current /bin listing:
+
+basename bash cat clear date dirname editor find gopherd login ls man nano pico rootshell seq sh telnet true uptime vi vim whereis whoami curl wget
