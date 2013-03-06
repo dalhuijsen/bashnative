@@ -1,3 +1,10 @@
+###########
+# TOP PRIORITY: Find a way to implement coreutil's mk{nod,dir,fifo} 
+# PREFERABLY WITHOUT PATCHING BASH TO GIVE THEM TO ME NATIVELY
+# *note to self: write and submit patches to bash that provide
+#  them natively ;-)*
+##########
+
 #################################################
 # bashnative/TODO:  Wishlist of programs to port 
 #################################################

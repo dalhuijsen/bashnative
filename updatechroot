@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo cp -r -v ${HOME}/Work/bashnative/bin/* /chroot/bin
