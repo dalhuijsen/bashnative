@@ -1,5 +1,5 @@
 #!/bin/bash
-basename () { 
+main () { 
 	if [[ -z "$2" ]]; then
 		echo ${1##*/} 	 # This pretty much does all the work: ${VAR##*/}
 	else
