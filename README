@@ -28,16 +28,16 @@
  
  Underlying philosophy:
 
-   Have a 'truly open source' operating system; if all the programs are just
-   ascii files with the executable bit set, it becomes very easy to modify
-   on runtime.  Main reason however is just for fun. No way would I recommend
-   the memory model and runtime speed of the Bourne Again SHell for large 
-   production systems.
+   Main reason; just for fun. 
+
+   We do not recommend this collection ( or the memory model and runtime 
+   speed of the Bourne Again SHell ) for production systems.
 
 	To provide a minimal system to be used in, for instance, chrooted 
 	environments it can be, and already has proven so, an alternative to
 	bigger systems.
 
+	Open source userland:
 	No compilation necessary, not ever, a text editor is all you need.
 
 
