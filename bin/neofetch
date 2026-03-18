@@ -1,0 +1,144 @@
+#!/bin/bash
+# bashnative/neofetch - system information tool with ASCII art
+# Pure bash, reads /proc where available
+
+# ---- info gathering ----
+
+get_os ()      { echo "${OSTYPE:-unknown}"; }
+get_host ()    { echo "${HOSTNAME:-$(cat /etc/hostname 2>/dev/null || echo unknown)}"; }
+get_kernel ()  {
+   if [[ -r /proc/version ]]; then
+      local V="$(</proc/version)"
+      V="${V#* version }"
+      echo "${V%% *}"
+   else
+      echo "unknown"
+   fi
+}
+get_shell ()   { echo "bash ${BASH_VERSION}"; }
+get_term ()    { echo "${TERM:-unknown}"; }
+
+get_uptime ()  {
+   if [[ -r /proc/uptime ]]; then
+      local UP="$(</proc/uptime)"
+      UP="${UP%%.*}"
+      local D=$(( UP / 86400 )) H=$(( (UP % 86400) / 3600 )) M=$(( (UP % 3600) / 60 ))
+      local OUT=""
+      (( D > 0 )) && OUT="${D}d "
+      (( H > 0 )) && OUT="${OUT}${H}h "
+      OUT="${OUT}${M}m"
+      echo "$OUT"
+   else
+      echo "unknown"
+   fi
+}
+
+get_packages () {
+   local COUNT=0
+   for F in /bin/*; do
+      [[ -x "$F" ]] && [[ ! -d "$F" ]] && (( COUNT++ ))
+   done
+   echo "${COUNT} (bashnative)"
+}
+
+get_cpu ()     {
+   if [[ -r /proc/cpuinfo ]]; then
+      local MODEL="" CORES=0
+      while IFS=: read -r KEY VAL; do
+         KEY="${KEY%%[[:space:]]*}"
+         if [[ "$KEY" == "model name" ]] || [[ "$KEY" == "Model" ]]; then
+            [[ -z "$MODEL" ]] && MODEL="${VAL## }"
+         fi
+         [[ "$KEY" == "processor" ]] && (( CORES++ ))
+      done < /proc/cpuinfo
+      if [[ -n "$MODEL" ]]; then
+         echo "${MODEL} (${CORES})"
+      else
+         echo "${CORES} cores"
+      fi
+   else
+      echo "unknown"
+   fi
+}
+
+get_memory ()  {
+   if [[ -r /proc/meminfo ]]; then
+      local TOTAL=0 AVAIL=0
+      while read -r KEY VAL _; do
+         KEY="${KEY%:}"
+         case "$KEY" in
+            MemTotal)     TOTAL=$VAL ;;
+            MemAvailable) AVAIL=$VAL ;;
+         esac
+      done < /proc/meminfo
+      local USED=$(( (TOTAL - AVAIL) / 1024 ))
+      TOTAL=$(( TOTAL / 1024 ))
+      echo "${USED}MiB / ${TOTAL}MiB"
+   else
+      echo "unknown"
+   fi
+}
+
+# ---- main ----
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: neofetch"
+      echo "Display system information with ASCII art."
+      exit 0
+   fi
+
+   # colors
+   local C0='\e[0m'
+   local C1='\e[1;32m'    # bright green (logo)
+   local C2='\e[1;33m'    # bright yellow (labels)
+   local C3='\e[1;37m'    # bright white (values)
+   local C4='\e[0;90m'    # dim gray
+
+   # logo lines
+   local -a LOGO
+   LOGO+=("${C1}  ╔╗  ╔╗  ╔═╗  ╔╗ ╔╗${C0} ")
+   LOGO+=("${C1}  ║╚╗╔╝║  ║ ║  ║║ ║║${C0} ")
+   LOGO+=("${C1}  ╚╗║║╔╝  ║ ║  ║╚═╝║${C0} ")
+   LOGO+=("${C1}   ║╚╝║   ╠═╣  ╚═╗╔╝${C0} ")
+   LOGO+=("${C1}   ║  ║   ║ ║  ╔═╝╚╗${C0} ")
+   LOGO+=("${C1}   ╚══╝   ╚═╝  ╚═══╝${C0} ")
+   LOGO+=("${C4}   bash-native userland${C0}")
+   LOGO+=("")
+
+   # info lines
+   local -a INFO
+   INFO+=("${C2}OS${C0}:        ${C3}$(get_os)${C0}")
+   INFO+=("${C2}Host${C0}:      ${C3}$(get_host)${C0}")
+   INFO+=("${C2}Kernel${C0}:    ${C3}$(get_kernel)${C0}")
+   INFO+=("${C2}Uptime${C0}:    ${C3}$(get_uptime)${C0}")
+   INFO+=("${C2}Packages${C0}:  ${C3}$(get_packages)${C0}")
+   INFO+=("${C2}Shell${C0}:     ${C3}$(get_shell)${C0}")
+   INFO+=("${C2}Terminal${C0}:  ${C3}$(get_term)${C0}")
+   INFO+=("${C2}CPU${C0}:       ${C3}$(get_cpu)${C0}")
+   INFO+=("${C2}Memory${C0}:    ${C3}$(get_memory)${C0}")
+   INFO+=("")
+   INFO+=("\e[40m  \e[41m  \e[42m  \e[43m  \e[44m  \e[45m  \e[46m  \e[47m  ${C0}")
+   INFO+=("\e[100m  \e[101m  \e[102m  \e[103m  \e[104m  \e[105m  \e[106m  \e[107m  ${C0}")
+
+   # render side by side
+   local MAXLINES=${#LOGO[@]}
+   (( ${#INFO[@]} > MAXLINES )) && MAXLINES=${#INFO[@]}
+
+   local PAD="                         "   # 25 chars for logo column
+
+   echo
+   local I=0
+   while (( I < MAXLINES )); do
+      if (( I < ${#LOGO[@]} )) && [[ -n "${LOGO[$I]}" ]]; then
+         echo -ne "${LOGO[$I]}"
+      else
+         echo -n "$PAD"
+      fi
+      echo -e "  ${INFO[$I]:-}"
+      (( I++ ))
+   done
+   echo
+}
+
+main "$@"

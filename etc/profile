@@ -170,14 +170,5 @@ path () {
 
 if [[ -t 1 ]] && [[ -z "$_BN_WELCOMED" ]]; then
    export _BN_WELCOMED=1
-   echo -e "\e[1;32m"
-   echo "  ╔══════════════════════════════════════════════════╗"
-   echo "  ║        BASH-Native userland system               ║"
-   echo "  ║        $(ls /bin | wc -l) tools, one binary, all bash           ║"
-   echo "  ║                                                  ║"
-   echo "  ║  Type 'help' for bash builtins                   ║"
-   echo "  ║  Type 'ls /bin' to see available tools           ║"
-   echo "  ║  Type 'vi FILE' to edit files                    ║"
-   echo "  ╚══════════════════════════════════════════════════╝"
-   echo -e "\e[0m"
+   neofetch
 fi
