@@ -1,6 +1,6 @@
 #!/bin/bash
 # bashnative/figlet - display large characters made from ordinary screen characters
-# Supports multiple fonts via font files in BASHNATIVE/games/fonts/
+# Supports standard FIGlet .flf font files (figlet.org)
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
 FONTDIR="${BASHNATIVE}/games/fonts"
@@ -18,10 +18,14 @@ main () {
       shift
    done
 
-   local FONTFILE="${FONTDIR}/${FONTNAME}.font"
-   if [[ ! -r "$FONTFILE" ]]; then
+   local FONTFILE=""
+   if [[ -r "${FONTDIR}/${FONTNAME}.flf" ]]; then
+      FONTFILE="${FONTDIR}/${FONTNAME}.flf"
+   elif [[ -r "${FONTDIR}/${FONTNAME}" ]]; then
+      FONTFILE="${FONTDIR}/${FONTNAME}"
+   else
       echo "figlet: font '${FONTNAME}' not found" >&2
-      echo "Available fonts: $(list_fonts)" >&2
+      echo "Use -l to list available fonts" >&2
       exit 1
    fi
 
@@ -36,79 +40,111 @@ main () {
 }
 
 list_fonts () {
-   for F in "${FONTDIR}"/*.font; do
+   local F NAME
+   for F in "${FONTDIR}"/*.flf; do
       [[ -f "$F" ]] || continue
-      local NAME="${F##*/}"
-      echo "${NAME%.font}"
+      NAME="${F##*/}"
+      echo "${NAME%.flf}"
    done
 }
 
-render () {
-   local TEXT="${1^^}"   # bash 4.0+ native uppercase — no tr dependency
-   local FONTFILE="$2"
-   local HEIGHT=0
+# parse FIGlet .flf font file format
+# header: flf2a<hardblank> height baseline maxlen oldlayout commentlines ...
+# then commentlines lines of comments
+# then characters: ASCII 32-126, each HEIGHT lines, lines end with @ or @@
+load_flf () {
+   local FONTFILE="$1"
+   local HEADER
+   IFS= read -r HEADER < "$FONTFILE"
 
-   # read font height from first line
-   read -r HEIGHT < "$FONTFILE"
+   # parse header: "flf2a$ 6 5 16 15 11 ..."
+   local MAGIC="${HEADER%%[^ ]*}"
+   HARDBLANK="${HEADER:5:1}"
+   local REST="${HEADER#flf2a? }"
 
-   # read character definitions into associative array
-   # store each line separately: GLYPHS["A:0"], GLYPHS["A:1"], etc.
-   local -A GLYPHS
-   local CHAR="" LINENUM=0
-   local SKIP=1 HAVE_CHAR=""
+   local -a FIELDS
+   read -ra FIELDS <<< "$REST"
+   HEIGHT="${FIELDS[0]}"
+   local COMMENTS="${FIELDS[4]:-0}"
+
+   # read past header + comment lines
+   local SKIP=$(( COMMENTS + 1 ))
+   local LINECOUNT=0 CHARCODE=32 ROW=0
+   local LINE
 
    while IFS= read -r LINE; do
-      if (( SKIP )); then
-         SKIP=0
+      (( LINECOUNT++ ))
+      if (( LINECOUNT <= SKIP )); then
          continue
       fi
-      if [[ -z "$HAVE_CHAR" ]]; then
-         # skip blank separator lines between glyphs
-         [[ -z "$LINE" ]] && continue
-         CHAR="$LINE"
-         LINENUM=0
-         HAVE_CHAR=1
-      else
-         GLYPHS["${CHAR}:${LINENUM}"]="$LINE"
-         (( LINENUM++ ))
-         if (( LINENUM >= HEIGHT )); then
-            HAVE_CHAR=""
-         fi
+
+      # strip trailing @ or @@ marker
+      local CLEAN="$LINE"
+      if [[ "$CLEAN" == *"@@" ]]; then
+         CLEAN="${CLEAN%@@}"
+      elif [[ "$CLEAN" == *"@" ]]; then
+         CLEAN="${CLEAN%@}"
+      fi
+
+      # replace hardblank with space
+      if [[ "$HARDBLANK" != " " ]]; then
+         CLEAN="${CLEAN//$HARDBLANK/ }"
+      fi
+
+      # store glyph row — map charcode to actual character
+      local CH
+      if (( CHARCODE <= 126 )); then
+         printf -v CH '%b' "$(printf '\\x%02x' "$CHARCODE")"
+      fi
+      GLYPHS["${CH}:${ROW}"]="$CLEAN"
+
+      (( ROW++ ))
+      if (( ROW >= HEIGHT )); then
+         ROW=0
+         (( CHARCODE++ ))
+         # stop after ASCII 126 (~) for basic support
+         (( CHARCODE > 126 )) && break
       fi
    done < "$FONTFILE"
+}
 
-   # space character: set all rows to empty (width handled by padding)
-   local R=0
-   while (( R < HEIGHT )); do
-      GLYPHS[" :${R}"]="  "
-      (( R++ ))
-   done
+render () {
+   local TEXT="$1"
+   local FONTFILE="$2"
+   local HARDBLANK=""
+   HEIGHT=0
+
+   local -A GLYPHS
+   load_flf "$FONTFILE"
 
    # find max width per character for proper spacing
    local -A WIDTHS
-   local I=0
+   local I=0 CH MAXW R W
    while (( I < ${#TEXT} )); do
-      local CH="${TEXT:$I:1}"
-      local MAXW=0 R=0
-      while (( R < HEIGHT )); do
-         local W="${#GLYPHS[${CH}:${R}]}"
-         (( W > MAXW )) && MAXW=$W
-         (( R++ ))
-      done
-      WIDTHS["$CH"]=$MAXW
+      CH="${TEXT:$I:1}"
+      if [[ -z "${WIDTHS[$CH]+x}" ]]; then
+         MAXW=0
+         R=0
+         while (( R < HEIGHT )); do
+            W="${#GLYPHS[${CH}:${R}]}"
+            (( W > MAXW )) && MAXW=$W
+            (( R++ ))
+         done
+         WIDTHS["$CH"]=$MAXW
+      fi
       (( I++ ))
    done
 
-   # render text line by line, padding each glyph to its max width
+   # render text line by line
    local ROW=0
    while (( ROW < HEIGHT )); do
-      local I=0
+      I=0
       while (( I < ${#TEXT} )); do
-         local CH="${TEXT:$I:1}"
+         CH="${TEXT:$I:1}"
          local KEY="${CH}:${ROW}"
          local GLYPH="${GLYPHS[$KEY]:-}"
-         local W="${WIDTHS[$CH]:-5}"
-         printf "%-${W}s" "$GLYPH"
+         local WD="${WIDTHS[$CH]:-1}"
+         printf "%-${WD}s" "$GLYPH"
          (( I++ ))
       done
       echo
@@ -119,13 +155,14 @@ render () {
 helpmsg () {
 echo "Usage: figlet [-f FONT] TEXT
 Display large characters made from ordinary screen characters.
+Uses standard FIGlet .flf font files (drop any .flf into games/fonts/).
 
   -f FONT    select font (default: standard)
   -l, --list list available fonts
   -h, --help display this help
 
 Available fonts:"
-   list_fonts | sed 's/^/  /'
+   list_fonts | while read -r F; do echo "  $F"; done
 }
 
 main "$@"
