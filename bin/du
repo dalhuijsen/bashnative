@@ -22,15 +22,15 @@ main () {
 }
 
 du_walk () {
-   local PATH="$1"
+   local FPATH="$1"
    local TOTAL=0
 
-   if [[ -f "$PATH" ]] && [[ -r "$PATH" ]]; then
-      local CONTENT="$(<"$PATH")"
+   if [[ -f "$FPATH" ]] && [[ -r "$FPATH" ]]; then
+      local CONTENT="$(<"$FPATH")"
       TOTAL=${#CONTENT}
       (( SFLAG )) || echo -e "${TOTAL}\t${PATH}"
-   elif [[ -d "$PATH" ]]; then
-      for ITEM in "$PATH"/*; do
+   elif [[ -d "$FPATH" ]]; then
+      for ITEM in "$FPATH"/*; do
          [[ -e "$ITEM" ]] || continue
          if [[ -f "$ITEM" ]] && [[ -r "$ITEM" ]]; then
             local CONTENT="$(<"$ITEM")"

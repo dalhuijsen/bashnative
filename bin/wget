@@ -32,7 +32,7 @@ main () {
    local PROTO="${URL%%://*}"
    local REST="${URL#*://}"
    local HOST="${REST%%/*}"
-   local PATH="/${REST#*/}"
+   local URLPATH="/${REST#*/}"
    local PORT=80
 
    if [[ "$PROTO" == "https" ]]; then
@@ -46,7 +46,7 @@ main () {
       HOST="${HOST%:*}"
    fi
 
-   [[ "$PATH" == "/$REST" ]] && PATH="/"
+   [[ "$URLPATH" == "/$REST" ]] && URLPATH="/"
 
    # default output filename
    if [[ -z "$OUTFILE" ]]; then
@@ -64,7 +64,7 @@ main () {
    fi
 
    # send HTTP request
-   echo -e "GET ${PATH} HTTP/1.1\r\nHost: ${HOST}\r\nUser-Agent: bashnative-wget/1.0\r\nConnection: close\r\n\r\n" >&3
+   echo -e "GET ${URLPATH} HTTP/1.1\r\nHost: ${HOST}\r\nUser-Agent: bashnative-wget/1.0\r\nConnection: close\r\n\r\n" >&3
 
    # read response -- skip headers, save body
    local IN_BODY=0
