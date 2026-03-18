@@ -1,9 +1,7 @@
 #temp file to hold the linking logic for the chroot
 editor nano
-editor vim
-editor vi
 editor pico
+vi vim
 bash sh
 nc netcat
-wget curl  # wget and curl share the same HTTP-over-/dev/tcp approach
 
