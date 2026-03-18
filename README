@@ -1,54 +1,135 @@
 
 
- **********************************************************
- * BASH-Native: The UNIX userland system, written in BASH *
- **********************************************************
-                                  Copyright(C)2011-2013 GPL
+**********************************************************
+* BASH-Native: The UNIX userland system, written in BASH *
+**********************************************************
+                                 Copyright(C)2011-2013 GPL
 
 
- Project completion: ~ 3%
- Latest milestone: Working CHROOT implementation. (*)
- Top priority: mk{nod,dir,fifo} *help?! howto do this without external binaries*
- 
+Project completion: ~ 75%
+Latest milestone: fs builtin (9 syscalls), vi editor, 140+ tools
+Top priority: test coverage and edge cases
 
- Project goal status:
- 
-   BusyBox replacement: 5%;
-   CoreUtils replacement: 1%;
+Project goal status:
 
+  CoreUtils replacement: 87% (90/103);
+  BusyBox replacement:   85% (121/142 userland tools);
 
 
- Bashnative currently provides:
 
-   basename bash cat clear date dirname editor find gopherd login ls man 
-   nano pico rootshell seq sh telnet true uptime vi vim whereis whoami 
-   curl wget [1]
+Bashnative currently provides:
+
+  [ arch ash base32 base64 basename bc cal cat chgrp chmod chown
+  cksum clear cmp comm cp csplit curl cut date dc df diff dir
+  dircolors dirname du echo ed editor env expand expr factor false
+  find fmt fold free fuser grep groups head hexdump hostid hostname
+  id install join kill killall less link ln logname ls lsof man
+  md5sum mkdir mkfifo mknod mktemp more mv nc netstat nl nohup nproc
+  nslookup numfmt od paste pathchk pgrep pidof ping pinky pkill pr
+  printenv printf ps pwd readlink realpath reset rev rm rmdir sed seq
+  sha1sum sha256sum sha512sum shuf sleep sort split stat strings sum
+  sync tac tail tee telnet test time timeout top touch tr tree true
+  truncate tsort tty uname unexpand uniq unlink uptime users usleep
+  vdir vi vim watch wc wget whereis which who whoami whois xargs xxd
+  yes [1]
 
 
- 
- Underlying philosophy:
 
-   Main reason; just for fun. 
+Build system:
 
-   We do not recommend this collection ( or the memory model and runtime 
-   speed of the Bourne Again SHell ) for production systems.
+  build/build-bash.sh compiles a patched bash binary with the 'fs'
+  builtin.  The 'fs' builtin provides filesystem syscalls that
+  cannot be done in pure bash:
 
-	To provide a minimal system to be used in, for instance, chrooted 
+    fs mkdir, fs mkfifo, fs mknod    (creation)
+    fs chmod, fs chown               (permissions)
+    fs rm, fs rmdir                  (deletion)
+    fs ln                            (links)
+    fs mv                            (rename)
+
+  Usage: cd build && ./build-bash.sh [--static] [-j4]
+
+  The resulting bash binary + all scripts in bin/ is a complete
+  minimal userland.  One binary.  Everything else is a text file.
+
+
+Docker:
+
+  ./z_build/tests/test-container.sh          build & run interactively
+  ./z_build/tests/test-container.sh test     run automated smoke tests
+
+
+
+Underlying philosophy:
+
+  Main reason; just for fun.
+
+  We do not recommend this collection ( or the memory model and runtime
+  speed of the Bourne Again SHell ) for production systems.
+
+	To provide a minimal system to be used in, for instance, chrooted
 	environments it can be, and already has proven so, an alternative to
 	bigger systems.
 
 	Open source userland:
-	No compilation necessary, not ever, a text editor is all you need.
+	No compilation necessary, not ever, a text editor is all you need. [2]
+
+
+Design constraints:
+
+  Text only.  All bashnative tools operate on text.  Binary file
+  operations (dd, tar, gzip, etc) are out of scope by design.
+  Bash's read/echo/printf work on strings, not raw bytes.  Tools
+  like cp, cat, and hexdump do their best but are NOT binary safe.
+
+  One binary.  The only compiled code is /bin/bash (with the 'fs'
+  builtin patched in).  Everything else is a plain text bash script.
+  If it can't be done with bash builtins, parameter expansion, and
+  /proc, it doesn't belong here.
+
+  Syscalls via 'fs'.  Operations that require kernel syscalls
+  (mkdir, chmod, unlink, etc) go through the 'fs' builtin, with a
+  three-pronged fallback chain:
+    1. fs builtin   - patched bashnative bash (zero overhead)
+    2. enable -f     - stock bash + compiled loadable (no fork per call)
+    3. external bins - /usr/bin/mkdir etc (works anywhere, but forks)
+
+  Hash functions (sha*sum, md5sum) wrap available system tools when
+  present.  Pure bash implementations would work but are too slow
+  to be practical.
+
+
+Not in scope (by design):
+
+  Binary I/O and compression:
+    dd, tar, gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unzip, cpio,
+    shred.  These operate on binary formats and/or implement
+    compression algorithms that require byte-level I/O.  Bash's
+    read/echo/printf operate on text strings, not raw byte streams.
+
+  SELinux:
+    chcon, runcon.  Security context operations need libselinux.
+
+  Process control:
+    nice, renice, stdbuf.  Need nice(2)/setpriority(2)/LD_PRELOAD
+    syscalls that bash cannot make.
+
+  Kernel/hardware:
+    mount, umount, insmod, modprobe, ifconfig (write), mknod for
+    real devices.  These need root and kernel-level syscalls.
+
+  Complex text processing:
+    awk, patch.  These are effectively programming languages in
+    their own right.  Implementing them in bash would be a project
+    bigger than bashnative itself.  (sed is implemented with basic
+    s///g and /pattern/d support.)
 
 
 
+[1] disclaimer: even though the programs are similar in functionality as
+    their named counterparts, they are not exact copies.  Furthermore some
+    are just links, for instance, nano and pico link to the editor
+    program, and vim links to vi.
 
-
-
-
-
-
- [1] disclaimer: even though the programs are similar in functionality as
-     their named counterparts, they are not exact copies.  Furthermore some
-     are just links, for instance, vim, vi, nano and pico all link to the
-     editor program. These links are just there for usability reasons.
+[2] well, almost.  The 'fs' builtin requires one initial compilation
+    of bash.  After that, everything is text files.

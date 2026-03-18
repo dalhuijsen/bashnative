@@ -1,0 +1,56 @@
+#!/bin/bash
+# bashnative/nc (netcat) - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# TCP client mode via /dev/tcp
+# No listen mode (bash can't bind sockets)
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      helpmsg
+      exit 0
+   fi
+
+   local HOST="$1"
+   local PORT="$2"
+
+   if [[ -z "$HOST" ]] || [[ -z "$PORT" ]]; then
+      echo "nc: missing host or port" >&2
+      exit 1
+   fi
+
+   # open TCP connection
+   exec 3<>/dev/tcp/${HOST}/${PORT} 2>/dev/null
+   if [[ $? -ne 0 ]]; then
+      echo "nc: connect to ${HOST} port ${PORT} failed" >&2
+      exit 1
+   fi
+
+   # background: read from socket, write to stdout
+   cat <&3 &
+   local READER=$!
+
+   # foreground: read from stdin, write to socket
+   while IFS= read -r LINE; do
+      echo "$LINE" >&3
+   done
+
+   # cleanup
+   kill $READER 2>/dev/null
+   exec 3>&-
+}
+
+helpmsg () {
+echo "Usage: nc HOST PORT
+Connect to HOST on PORT via TCP. (client mode only)
+
+Reads from stdin, sends to the connection.
+Prints received data to stdout.
+
+Uses bash /dev/tcp. No listen mode (bash can't bind sockets).
+"
+}
+
+main "$@"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# bashnative/link - create a hard link
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+if [[ -z "$1" ]] || [[ -z "$2" ]] || [[ "$1" == "--help" ]]; then
+   echo "Usage: link TARGET LINK_NAME"
+   [[ "$1" == "--help" ]] && exit 0 || exit 1
+fi
+fs ln "$1" "$2"

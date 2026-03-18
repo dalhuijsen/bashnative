@@ -1,0 +1,5 @@
+#!/bin/bash
+# bashnative/vdir - list directory contents verbosely (like ls -l)
+# our ls doesn't have -l yet, so just call ls for now
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+exec "${BASHNATIVE}/bin/ls" "$@"

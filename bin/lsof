@@ -1,0 +1,32 @@
+#!/bin/bash
+# bashnative/lsof - list open files
+# Walks /proc/[pid]/fd (Linux only)
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: lsof"; exit 0; }
+
+   if [[ ! -d /proc ]]; then
+      echo "lsof: /proc not available" >&2
+      exit 1
+   fi
+
+   printf "%-8s %5s %4s %s\n" "COMMAND" "PID" "FD" "NAME"
+
+   for PROCDIR in /proc/[0-9]*; do
+      local PID="${PROCDIR##*/}"
+      [[ -d "${PROCDIR}/fd" ]] || continue
+
+      local COMM=""
+      [[ -r "${PROCDIR}/comm" ]] && COMM="$(< "${PROCDIR}/comm")"
+
+      for FD in "${PROCDIR}/fd"/*; do
+         [[ -L "$FD" ]] || continue
+         local FDNUM="${FD##*/}"
+         local LINK
+         LINK="$(readlink "$FD" 2>/dev/null)" || continue
+         printf "%-8s %5s %4s %s\n" "${COMM:-?}" "$PID" "$FDNUM" "$LINK"
+      done
+   done
+}
+
+main "$@"

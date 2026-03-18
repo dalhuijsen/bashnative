@@ -1,14 +1,111 @@
 #!/bin/bash
-find () {
-if [[ -d "$1" ]]; then
-	for x in $1/*; do
-		if [[ -d "$x" ]]; then
-			find "$x"
-		else
-			echo "$x"
-		fi
-	done
-fi
+# bashnative/find - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Walk a directory tree.  Supports -name, -type, and -maxdepth.
+
+NAMEPAT=
+TYPEFILT=
+MAXDEPTH=-1
+
+main () {
+   local STARTDIR="."
+
+   # parse arguments
+   while [[ -n "$1" ]]; do
+      case "$1" in
+         -name)    shift; NAMEPAT="$1" ;;
+         -type)    shift; TYPEFILT="$1" ;;
+         -maxdepth) shift; MAXDEPTH="$1" ;;
+         --help|-h) helpmsg; exit 0 ;;
+         -*)       shift ;;   # skip unknown flags
+         *)
+            # first non-flag arg is the start directory
+            STARTDIR="$1"
+            ;;
+      esac
+      shift
+   done
+
+   # strip trailing slash (but keep "/" as-is)
+   if [[ "$STARTDIR" != "/" ]]; then
+      STARTDIR="${STARTDIR%/}"
+   fi
+
+   find_walk "$STARTDIR" 0
 }
 
-find "$@"
+find_walk () {
+   local DIR="$1"
+   local DEPTH="$2"
+
+   # print the directory itself
+   find_match "$DIR" && echo "$DIR"
+
+   # check maxdepth
+   if (( MAXDEPTH >= 0 && DEPTH >= MAXDEPTH )); then
+      return
+   fi
+
+   # iterate children  (handle "/" specially to avoid "//bin")
+   local PREFIX="$DIR"
+   [[ "$PREFIX" == "/" ]] && PREFIX=""
+   local ITEM
+   for ITEM in "$PREFIX"/*; do
+      # glob didn't match anything
+      [[ -e "$ITEM" ]] || continue
+
+      if [[ -d "$ITEM" ]] && [[ ! -L "$ITEM" ]]; then
+         # skip /proc and /sys to avoid hanging on pseudo-filesystems
+         case "$ITEM" in
+            /proc|/proc/*|/sys|/sys/*) continue ;;
+         esac
+         find_walk "$ITEM" $(( DEPTH + 1 ))
+      else
+         find_match "$ITEM" && echo "$ITEM"
+      fi
+   done
+}
+
+find_match () {
+   local ITEM="$1"
+   local BASE="${ITEM##*/}"
+
+   # -name filter (glob pattern)
+   if [[ -n "$NAMEPAT" ]]; then
+      case "$BASE" in
+         $NAMEPAT) : ;;   # matched
+         *) return 1 ;;
+      esac
+   fi
+
+   # -type filter
+   if [[ -n "$TYPEFILT" ]]; then
+      case "$TYPEFILT" in
+         f) [[ -f "$ITEM" ]] || return 1 ;;
+         d) [[ -d "$ITEM" ]] || return 1 ;;
+         l) [[ -L "$ITEM" ]] || return 1 ;;
+         p) [[ -p "$ITEM" ]] || return 1 ;;
+         *) return 1 ;;
+      esac
+   fi
+
+   return 0
+}
+
+helpmsg () {
+echo "Usage: find [PATH] [OPTIONS]
+Walk a directory tree and print matching paths.
+
+  -name PATTERN    match filenames against glob PATTERN
+  -type TYPE       filter by type: f(ile), d(ir), l(ink), p(ipe)
+  -maxdepth N      descend at most N levels
+  -h, --help       display this help and exit
+
+Note: /proc and /sys are skipped automatically.
+"
+}
+
+main "$@"

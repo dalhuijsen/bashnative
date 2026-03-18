@@ -1,0 +1,48 @@
+#!/bin/bash
+# bashnative/ln - create links between files
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+SFLAG=
+FFLAG=
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -s|--symbolic) SFLAG="-s" ;;
+         -f|--force)    FFLAG=1 ;;
+         --help|-h)     helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *)  break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "ln: missing operand" >&2
+      exit 1
+   fi
+
+   TARGET="$1"
+   LINKNAME="$2"
+
+   if [[ -n "$FFLAG" ]] && [[ -e "$LINKNAME" ]]; then
+      fs rm "$LINKNAME" 2>/dev/null
+   fi
+
+   fs ln $SFLAG "$TARGET" "$LINKNAME"
+}
+
+helpmsg () {
+echo "Usage: ln [OPTION]... TARGET LINK_NAME
+Create a link to TARGET with the name LINK_NAME.
+
+  -s, --symbolic   make symbolic links instead of hard links
+  -f, --force      remove existing destination files
+  -h, --help       display this help and exit
+"
+}
+
+main "$@"

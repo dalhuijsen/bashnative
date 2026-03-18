@@ -1,0 +1,46 @@
+#!/bin/bash
+# bashnative/join - join lines of two files on a common field
+
+FIELD1=1
+FIELD2=1
+DELIM=" "
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -1) shift; FIELD1="$1" ;;
+         -2) shift; FIELD2="$1" ;;
+         -t) shift; DELIM="$1" ;;
+         --help|-h) echo "Usage: join [-1 FIELD] [-2 FIELD] [-t DELIM] FILE1 FILE2"; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "join: missing operand" >&2
+      exit 1
+   fi
+
+   # slurp file2 into associative array keyed by join field
+   local -A FILE2MAP
+   while IFS= read -r LINE; do
+      local -a FIELDS
+      IFS="$DELIM" read -ra FIELDS <<< "$LINE"
+      local KEY="${FIELDS[$((FIELD2-1))]}"
+      FILE2MAP["$KEY"]="$LINE"
+   done < "$2"
+
+   # read file1, match and output
+   while IFS= read -r LINE; do
+      local -a FIELDS
+      IFS="$DELIM" read -ra FIELDS <<< "$LINE"
+      local KEY="${FIELDS[$((FIELD1-1))]}"
+      if [[ -n "${FILE2MAP[$KEY]+x}" ]]; then
+         echo "${LINE}${DELIM}${FILE2MAP[$KEY]}"
+      fi
+   done < "$1"
+}
+
+main "$@"

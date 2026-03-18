@@ -1,0 +1,31 @@
+#!/bin/bash
+# bashnative/chmod - change file mode bits
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: chmod MODE FILE..."
+      echo "Change the mode of each FILE to MODE (octal)."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "chmod: missing operand" >&2
+      exit 1
+   fi
+
+   local MODE="$1"
+   shift
+
+   for FILE in "$@"; do
+      fs chmod "$MODE" "$FILE"
+      if [[ $? -ne 0 ]]; then
+         exit 1
+      fi
+   done
+}
+
+main "$@"

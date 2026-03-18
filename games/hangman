@@ -1,0 +1,145 @@
+#!/bin/bash
+# bashnative/hangman - the classic word guessing game
+
+# built-in word list (no /usr/share/dict in our chroot)
+WORDS=(
+   bash script terminal kernel process signal socket daemon
+   buffer string array function variable parameter redirect
+   pipeline socket binary compile execute library module
+   filesystem directory permission symlink inode mount
+   container chroot namespace cgroup docker virtual
+   network protocol packet header router firewall proxy
+   encrypt cipher decode hash token session cookie
+   algorithm recursive iterate traverse pointer stack
+   debugger breakpoint segment register interrupt syscall
+)
+
+GALLOWS=(
+"
+  +---+
+  |   |
+      |
+      |
+      |
+      |
+========="
+"
+  +---+
+  |   |
+  O   |
+      |
+      |
+      |
+========="
+"
+  +---+
+  |   |
+  O   |
+  |   |
+      |
+      |
+========="
+"
+  +---+
+  |   |
+  O   |
+ /|   |
+      |
+      |
+========="
+"
+  +---+
+  |   |
+  O   |
+ /|\\  |
+      |
+      |
+========="
+"
+  +---+
+  |   |
+  O   |
+ /|\\  |
+ /    |
+      |
+========="
+"
+  +---+
+  |   |
+  O   |
+ /|\\  |
+ / \\  |
+      |
+========="
+)
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: hangman"; exit 0; }
+
+   local WORD="${WORDS[$(( RANDOM % ${#WORDS[@]} ))]}"
+   local GUESSED=""
+   local WRONG=0
+   local MAXWRONG=$(( ${#GALLOWS[@]} - 1 ))
+
+   echo "=== HANGMAN ==="
+   echo
+
+   while (( WRONG < MAXWRONG )); do
+      echo "${GALLOWS[$WRONG]}"
+      echo
+
+      # display word with blanks
+      local DISPLAY="" SOLVED=1
+      local I=0
+      while (( I < ${#WORD} )); do
+         local CH="${WORD:$I:1}"
+         if [[ "$GUESSED" == *"$CH"* ]]; then
+            DISPLAY="${DISPLAY}${CH} "
+         else
+            DISPLAY="${DISPLAY}_ "
+            SOLVED=0
+         fi
+         (( I++ ))
+      done
+      echo "  $DISPLAY"
+      echo
+      echo "  Guessed: $GUESSED"
+
+      if (( SOLVED )); then
+         echo
+         echo "  YOU WIN! The word was: $WORD"
+         return 0
+      fi
+
+      echo -n "  Guess a letter: "
+      read -r -n 1 LETTER
+      echo
+
+      if [[ -z "$LETTER" ]]; then
+         continue
+      fi
+
+      LETTER="${LETTER,,}"   # lowercase
+
+      if [[ "$GUESSED" == *"$LETTER"* ]]; then
+         echo "  Already guessed '$LETTER'"
+         continue
+      fi
+
+      GUESSED="${GUESSED}${LETTER}"
+
+      if [[ "$WORD" == *"$LETTER"* ]]; then
+         echo "  Correct!"
+      else
+         echo "  Wrong!"
+         (( WRONG++ ))
+      fi
+   done
+
+   echo "${GALLOWS[$WRONG]}"
+   echo
+   echo "  GAME OVER! The word was: $WORD"
+   return 1
+}
+
+main "$@"

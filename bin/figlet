@@ -1,0 +1,168 @@
+#!/bin/bash
+# bashnative/figlet - display large characters made from ordinary screen characters
+# Supports standard FIGlet .flf font files (figlet.org)
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+FONTDIR="${BASHNATIVE}/games/fonts"
+FONTNAME="standard"
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -f) shift; FONTNAME="$1" ;;
+         --list|-l) list_fonts; exit 0 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   local FONTFILE=""
+   if [[ -r "${FONTDIR}/${FONTNAME}.flf" ]]; then
+      FONTFILE="${FONTDIR}/${FONTNAME}.flf"
+   elif [[ -r "${FONTDIR}/${FONTNAME}" ]]; then
+      FONTFILE="${FONTDIR}/${FONTNAME}"
+   else
+      echo "figlet: font '${FONTNAME}' not found" >&2
+      echo "Use -l to list available fonts" >&2
+      exit 1
+   fi
+
+   local TEXT="${*:-}"
+   if [[ -z "$TEXT" ]]; then
+      while IFS= read -r LINE; do
+         render "$LINE" "$FONTFILE"
+      done
+   else
+      render "$TEXT" "$FONTFILE"
+   fi
+}
+
+list_fonts () {
+   local F NAME
+   for F in "${FONTDIR}"/*.flf; do
+      [[ -f "$F" ]] || continue
+      NAME="${F##*/}"
+      echo "${NAME%.flf}"
+   done
+}
+
+# parse FIGlet .flf font file format
+# header: flf2a<hardblank> height baseline maxlen oldlayout commentlines ...
+# then commentlines lines of comments
+# then characters: ASCII 32-126, each HEIGHT lines, lines end with @ or @@
+load_flf () {
+   local FONTFILE="$1"
+   local HEADER
+   IFS= read -r HEADER < "$FONTFILE"
+
+   # parse header: "flf2a$ 6 5 16 15 11 ..."
+   local MAGIC="${HEADER%%[^ ]*}"
+   HARDBLANK="${HEADER:5:1}"
+   local REST="${HEADER#flf2a? }"
+
+   local -a FIELDS
+   read -ra FIELDS <<< "$REST"
+   HEIGHT="${FIELDS[0]}"
+   local COMMENTS="${FIELDS[4]:-0}"
+
+   # read past header + comment lines
+   local SKIP=$(( COMMENTS + 1 ))
+   local LINECOUNT=0 CHARCODE=32 ROW=0
+   local LINE
+
+   while IFS= read -r LINE; do
+      (( LINECOUNT++ ))
+      if (( LINECOUNT <= SKIP )); then
+         continue
+      fi
+
+      # strip trailing @ or @@ marker
+      local CLEAN="$LINE"
+      if [[ "$CLEAN" == *"@@" ]]; then
+         CLEAN="${CLEAN%@@}"
+      elif [[ "$CLEAN" == *"@" ]]; then
+         CLEAN="${CLEAN%@}"
+      fi
+
+      # replace hardblank with space
+      if [[ "$HARDBLANK" != " " ]]; then
+         CLEAN="${CLEAN//$HARDBLANK/ }"
+      fi
+
+      # store glyph row — map charcode to actual character
+      local CH
+      if (( CHARCODE <= 126 )); then
+         printf -v CH '%b' "$(printf '\\x%02x' "$CHARCODE")"
+      fi
+      GLYPHS["${CH}:${ROW}"]="$CLEAN"
+
+      (( ROW++ ))
+      if (( ROW >= HEIGHT )); then
+         ROW=0
+         (( CHARCODE++ ))
+         # stop after ASCII 126 (~) for basic support
+         (( CHARCODE > 126 )) && break
+      fi
+   done < "$FONTFILE"
+}
+
+render () {
+   local TEXT="$1"
+   local FONTFILE="$2"
+   local HARDBLANK=""
+   HEIGHT=0
+
+   local -A GLYPHS
+   load_flf "$FONTFILE"
+
+   # find max width per character for proper spacing
+   local -A WIDTHS
+   local I=0 CH MAXW R W
+   while (( I < ${#TEXT} )); do
+      CH="${TEXT:$I:1}"
+      if [[ -z "${WIDTHS[$CH]+x}" ]]; then
+         MAXW=0
+         R=0
+         while (( R < HEIGHT )); do
+            W="${#GLYPHS[${CH}:${R}]}"
+            (( W > MAXW )) && MAXW=$W
+            (( R++ ))
+         done
+         WIDTHS["$CH"]=$MAXW
+      fi
+      (( I++ ))
+   done
+
+   # render text line by line
+   local ROW=0
+   while (( ROW < HEIGHT )); do
+      I=0
+      while (( I < ${#TEXT} )); do
+         CH="${TEXT:$I:1}"
+         local KEY="${CH}:${ROW}"
+         local GLYPH="${GLYPHS[$KEY]:-}"
+         local WD="${WIDTHS[$CH]:-1}"
+         printf "%-${WD}s" "$GLYPH"
+         (( I++ ))
+      done
+      echo
+      (( ROW++ ))
+   done
+}
+
+helpmsg () {
+echo "Usage: figlet [-f FONT] TEXT
+Display large characters made from ordinary screen characters.
+Uses standard FIGlet .flf font files (drop any .flf into games/fonts/).
+
+  -f FONT    select font (default: standard)
+  -l, --list list available fonts
+  -h, --help display this help
+
+Available fonts:"
+   list_fonts | while read -r F; do echo "  $F"; done
+}
+
+main "$@"

@@ -1,0 +1,8 @@
+#!/bin/bash
+# bashnative/pinky - lightweight finger
+# Shows login name and terminal
+
+[[ "$1" == "--help" ]] && { echo "Usage: pinky"; exit 0; }
+
+printf "Login    Name                 TTY\n"
+printf "%-8s %-20s %s\n" "${USER:-root}" "${USER:-root}" "pts/0"

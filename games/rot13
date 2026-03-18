@@ -1,0 +1,26 @@
+#!/bin/bash
+# bashnative/rot13 - rotate characters 13 positions
+# Pure bash implementation using parameter expansion
+
+_ROT13_FROM="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+_ROT13_TO="NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"
+
+rot13_line () {
+   local LINE="$1" OUT="" I=0 CH POS
+   while (( I < ${#LINE} )); do
+      CH="${LINE:$I:1}"
+      # find position in FROM string
+      POS="${_ROT13_FROM%%${CH}*}"
+      if (( ${#POS} < ${#_ROT13_FROM} )); then
+         OUT="${OUT}${_ROT13_TO:${#POS}:1}"
+      else
+         OUT="${OUT}${CH}"
+      fi
+      (( I++ ))
+   done
+   printf '%s\n' "$OUT"
+}
+
+while IFS= read -r LINE; do
+   rot13_line "$LINE"
+done < "${1:-/dev/stdin}"

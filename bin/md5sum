@@ -1,0 +1,55 @@
+#!/bin/bash
+# bashnative/md5sum - compute MD5 message digest
+# MD5 in pure bash would be insane (and insanely slow)
+# We provide a wrapper that tries what's available
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: md5sum [FILE]..."
+      echo "Print MD5 checksums."
+      echo "Note: wraps available system tools (md5/openssl)."
+      exit 0
+   fi
+
+   for FILE in "${@:--}"; do
+      if [[ "$FILE" == "-" ]]; then
+         compute_stdin
+      elif [[ ! -r "$FILE" ]]; then
+         echo "md5sum: ${FILE}: No such file or directory" >&2
+      else
+         compute_file "$FILE"
+      fi
+   done
+}
+
+compute_file () {
+   # try md5sum (Linux), md5 (macOS), openssl
+   if type md5sum >/dev/null 2>&1; then
+      command md5sum "$1"
+   elif type md5 >/dev/null 2>&1; then
+      local OUT="$(command md5 -q "$1")"
+      echo "${OUT}  $1"
+   elif type openssl >/dev/null 2>&1; then
+      local OUT="$(openssl md5 "$1" 2>/dev/null)"
+      OUT="${OUT##* }"
+      echo "${OUT}  $1"
+   else
+      echo "md5sum: no md5 tool available" >&2
+      exit 1
+   fi
+}
+
+compute_stdin () {
+   if type md5sum >/dev/null 2>&1; then
+      command md5sum
+   elif type md5 >/dev/null 2>&1; then
+      command md5
+   elif type openssl >/dev/null 2>&1; then
+      openssl md5
+   else
+      echo "md5sum: no md5 tool available" >&2
+      exit 1
+   fi
+}
+
+main "$@"

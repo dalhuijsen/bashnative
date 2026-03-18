@@ -1,0 +1,22 @@
+#!/bin/bash
+# bashnative/fold - wrap each input line to fit in specified width
+
+WIDTH=80
+
+while [[ "${1:0:1}" == "-" ]]; do
+   case "$1" in
+      -w) shift; WIDTH="$1" ;;
+      --help|-h) echo "Usage: fold [-w WIDTH] [FILE]"; exit 0 ;;
+      --) shift; break ;;
+      *) break ;;
+   esac
+   shift
+done
+
+while IFS= read -r LINE; do
+   while (( ${#LINE} > WIDTH )); do
+      echo "${LINE:0:$WIDTH}"
+      LINE="${LINE:$WIDTH}"
+   done
+   echo "$LINE"
+done < "${1:-/dev/stdin}"

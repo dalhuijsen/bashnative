@@ -1,0 +1,71 @@
+#!/bin/bash
+# bashnative/quiz - random trivia questions
+
+declare -a QUESTIONS ANSWERS
+
+# Q and A pairs
+QUESTIONS+=("What year was the UNIX epoch?")
+ANSWERS+=("1970")
+QUESTIONS+=("What does GNU stand for?")
+ANSWERS+=("GNU's Not Unix")
+QUESTIONS+=("Who created Linux?")
+ANSWERS+=("Linus Torvalds")
+QUESTIONS+=("What port does HTTP use?")
+ANSWERS+=("80")
+QUESTIONS+=("What port does SSH use?")
+ANSWERS+=("22")
+QUESTIONS+=("What command changes file permissions?")
+ANSWERS+=("chmod")
+QUESTIONS+=("What does EOF stand for?")
+ANSWERS+=("End Of File")
+QUESTIONS+=("What shell does bashnative use?")
+ANSWERS+=("bash")
+QUESTIONS+=("What filesystem is the root filesystem on Linux?")
+ANSWERS+=("ext4")
+QUESTIONS+=("How many bits in a byte?")
+ANSWERS+=("8")
+QUESTIONS+=("What does DNS stand for?")
+ANSWERS+=("Domain Name System")
+QUESTIONS+=("What command shows running processes?")
+ANSWERS+=("ps")
+QUESTIONS+=("What does the 'd' in /dev stand for?")
+ANSWERS+=("devices")
+QUESTIONS+=("What signal does kill send by default?")
+ANSWERS+=("SIGTERM")
+QUESTIONS+=("What does PID stand for?")
+ANSWERS+=("Process ID")
+QUESTIONS+=("How many standard file descriptors does a process have?")
+ANSWERS+=("3")
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: quiz"; exit 0; }
+
+   local SCORE=0 TOTAL=0 COUNT=${#QUESTIONS[@]}
+
+   echo "=== UNIX TRIVIA QUIZ ==="
+   echo "Type your answer, or 'q' to quit."
+   echo
+
+   while true; do
+      local IDX=$(( RANDOM % COUNT ))
+      echo "Q: ${QUESTIONS[$IDX]}"
+      echo -n "A: "
+      read -r ANSWER
+
+      [[ "${ANSWER,,}" == "q" ]] && break
+      (( TOTAL++ ))
+
+      if [[ "${ANSWER,,}" == "${ANSWERS[$IDX],,}" ]]; then
+         echo "Correct!"
+         (( SCORE++ ))
+      else
+         echo "Wrong. The answer is: ${ANSWERS[$IDX]}"
+      fi
+      echo
+   done
+
+   echo
+   echo "Score: ${SCORE} / ${TOTAL}"
+}
+
+main "$@"

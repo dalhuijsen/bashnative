@@ -1,0 +1,32 @@
+#!/bin/bash
+# bashnative/df - report filesystem disk space usage
+# Reads /proc/mounts and /proc/self/mountstats (Linux only)
+# Note: can only show mount points, not actual sizes (no statfs syscall)
+
+main () {
+   if [[ ! -r /proc/mounts ]]; then
+      echo "df: /proc/mounts not available" >&2
+      exit 1
+   fi
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: df"
+      echo "Note: sizes not available in pure bash (no statfs syscall)."
+      echo "Shows mount points and filesystem types."
+      exit 0
+   fi
+
+   printf "%-20s %-10s %s\n" "Filesystem" "Type" "Mounted on"
+
+   while read -r DEV MOUNT FSTYPE REST; do
+      # skip pseudo-filesystems unless they're interesting
+      case "$FSTYPE" in
+         proc|sysfs|devpts|tmpfs|cgroup*|overlay|devtmpfs)
+            [[ "$MOUNT" == "/" ]] || continue
+            ;;
+      esac
+      printf "%-20s %-10s %s\n" "$DEV" "$FSTYPE" "$MOUNT"
+   done < /proc/mounts
+}
+
+main "$@"

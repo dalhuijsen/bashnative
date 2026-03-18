@@ -1,0 +1,34 @@
+#!/bin/bash
+# bashnative/mv - move (rename) files
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: mv SOURCE DEST"
+      echo "Rename SOURCE to DEST, or move SOURCE to DEST directory."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "mv: missing operand" >&2
+      exit 1
+   fi
+
+   local SRC="$1" DST="$2"
+
+   # if dest is a directory, move into it
+   if [[ -d "$DST" ]]; then
+      DST="${DST}/${SRC##*/}"
+   fi
+
+   # try rename(2) via fs builtin first (fast, same-filesystem)
+   fs mv "$SRC" "$DST" 2>/dev/null && return 0
+
+   # cross-filesystem fallback: cp + rm
+   "${BASHNATIVE}/bin/cp" "$SRC" "$DST" && fs rm "$SRC"
+}
+
+main "$@"

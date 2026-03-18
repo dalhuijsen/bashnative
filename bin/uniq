@@ -1,0 +1,46 @@
+#!/bin/bash
+# bashnative/uniq - report or omit repeated lines
+
+CFLAG=0
+DFLAG=0
+
+while [[ "${1:0:1}" == "-" ]]; do
+   case "$1" in
+      -c) CFLAG=1 ;;
+      -d) DFLAG=1 ;;
+      --help|-h) echo "Usage: uniq [-c] [-d] [FILE]"; exit 0 ;;
+      --) shift; break ;;
+      *) break ;;
+   esac
+   shift
+done
+
+PREV=""
+COUNT=0
+FIRST=1
+
+flush () {
+   if (( FIRST )); then
+      return
+   fi
+   if (( DFLAG )) && (( COUNT < 2 )); then
+      return
+   fi
+   if (( CFLAG )); then
+      printf "%7d %s\n" "$COUNT" "$PREV"
+   else
+      echo "$PREV"
+   fi
+}
+
+while IFS= read -r LINE; do
+   if [[ "$LINE" == "$PREV" ]]; then
+      (( COUNT++ ))
+   else
+      flush
+      PREV="$LINE"
+      COUNT=1
+      FIRST=0
+   fi
+done < "${1:-/dev/stdin}"
+flush

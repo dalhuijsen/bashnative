@@ -1,0 +1,22 @@
+#!/bin/bash
+# bashnative/random - generate random numbers or pick random lines
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: random [MAX] or random < file"; exit 0; }
+
+   if [[ -n "$1" ]]; then
+      # random number 0 to MAX-1
+      echo $(( RANDOM % $1 ))
+   elif [[ ! -t 0 ]]; then
+      # random line from stdin
+      local -a BUF
+      while IFS= read -r LINE; do
+         BUF+=("$LINE")
+      done
+      (( ${#BUF[@]} > 0 )) && echo "${BUF[$(( RANDOM % ${#BUF[@]} ))]}"
+   else
+      echo $(( RANDOM ))
+   fi
+}
+
+main "$@"

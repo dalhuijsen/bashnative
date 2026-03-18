@@ -1,0 +1,4 @@
+#!/bin/bash
+# bashnative/yes - repeatedly output a line with all specified STRING(s), or 'y'
+STR="${*:-y}"
+while echo "$STR"; do :; done

@@ -1,0 +1,209 @@
+#!/bin/bash
+# bashnative/tetris - falling blocks in pure bash
+# Uses ANSI escape codes and read -t for timing
+
+# board dimensions
+W=10
+H=20
+SCORE=0
+LEVEL=1
+LINESCLEARED=0
+
+# board array (0=empty, 1-7=piece color)
+declare -a BOARD
+
+# pieces: each piece has 4 rotations, each rotation is 4 (x,y) offsets
+# I, O, T, S, Z, L, J
+P_I=("0,0 1,0 2,0 3,0"  "0,0 0,1 0,2 0,3"  "0,0 1,0 2,0 3,0"  "0,0 0,1 0,2 0,3")
+P_O=("0,0 1,0 0,1 1,1"  "0,0 1,0 0,1 1,1"  "0,0 1,0 0,1 1,1"  "0,0 1,0 0,1 1,1")
+P_T=("0,0 1,0 2,0 1,1"  "0,0 0,1 0,2 1,1"  "1,0 0,1 1,1 2,1"  "1,0 1,1 1,2 0,1")
+P_S=("1,0 2,0 0,1 1,1"  "0,0 0,1 1,1 1,2"  "1,0 2,0 0,1 1,1"  "0,0 0,1 1,1 1,2")
+P_Z=("0,0 1,0 1,1 2,1"  "1,0 0,1 1,1 0,2"  "0,0 1,0 1,1 2,1"  "1,0 0,1 1,1 0,2")
+P_L=("0,0 0,1 1,1 2,1"  "0,0 1,0 0,1 0,2"  "0,0 1,0 2,0 2,1"  "1,0 1,1 0,2 1,2")
+P_J=("2,0 0,1 1,1 2,1"  "0,0 0,1 0,2 1,2"  "0,0 1,0 2,0 0,1"  "0,0 1,0 1,1 1,2")
+
+PIECES=(P_I P_O P_T P_S P_Z P_L P_J)
+COLORS=("" "\e[1;36m" "\e[1;33m" "\e[1;35m" "\e[1;32m" "\e[1;31m" "\e[1;34m" "\e[1;37m")
+
+# current piece state
+CUR_PIECE=0
+CUR_ROT=0
+CUR_X=0
+CUR_Y=0
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: tetris"; echo "Controls: a/d=move, w=rotate, s=drop, q=quit"; exit 0; }
+
+   stty -echo -icanon min 0 time 0 2>/dev/null
+   echo -ne '\e[?25l\e[?1049h'
+   trap 'echo -ne "\e[?25h\e[?1049l"; stty echo icanon 2>/dev/null; exit' EXIT INT TERM
+
+   # init board
+   local I=0
+   while (( I < W * H )); do
+      BOARD[$I]=0
+      (( I++ ))
+   done
+
+   new_piece
+
+   while true; do
+      draw
+      local SPEED
+      SPEED=$(echo "scale=2; 0.5 - $LEVEL * 0.03" | bc 2>/dev/null || echo "0.3")
+      [[ "$SPEED" == "-"* || "$SPEED" == "0"* && "$SPEED" != "0."* ]] && SPEED="0.05"
+
+      local KEY=""
+      IFS= read -r -s -n 1 -t "${SPEED:-0.3}" KEY
+
+      if [[ "$KEY" == $'\e' ]]; then
+         IFS= read -r -s -n 2 -t 0.01 KEY
+         case "$KEY" in
+            "[D") KEY="a" ;;
+            "[C") KEY="d" ;;
+            "[A") KEY="w" ;;
+            "[B") KEY="s" ;;
+         esac
+      fi
+
+      case "$KEY" in
+         a) try_move $(( CUR_X - 1 )) $CUR_Y $CUR_ROT && CUR_X=$(( CUR_X - 1 )) ;;
+         d) try_move $(( CUR_X + 1 )) $CUR_Y $CUR_ROT && CUR_X=$(( CUR_X + 1 )) ;;
+         w) local NR=$(( (CUR_ROT + 1) % 4 ))
+            try_move $CUR_X $CUR_Y $NR && CUR_ROT=$NR ;;
+         s) # hard drop
+            while try_move $CUR_X $(( CUR_Y + 1 )) $CUR_ROT; do
+               CUR_Y=$(( CUR_Y + 1 ))
+               (( SCORE++ ))
+            done
+            ;;
+         q) break ;;
+      esac
+
+      # gravity
+      if try_move $CUR_X $(( CUR_Y + 1 )) $CUR_ROT; then
+         CUR_Y=$(( CUR_Y + 1 ))
+      else
+         lock_piece
+         clear_lines
+         new_piece
+         if ! try_move $CUR_X $CUR_Y $CUR_ROT; then
+            draw
+            echo -ne "\e[$((H/2+2));3H\e[1;31mGAME OVER!\e[0m"
+            echo -ne "\e[$((H/2+3));3HScore: $SCORE"
+            read -r -s -n 1
+            break
+         fi
+      fi
+   done
+}
+
+get_piece_coords () {
+   local PNAME="${PIECES[$1]}"
+   local -n PARR=$PNAME
+   echo "${PARR[$2]}"
+}
+
+try_move () {
+   local TX=$1 TY=$2 TR=$3
+   local COORDS=$(get_piece_coords $CUR_PIECE $TR)
+   for COORD in $COORDS; do
+      local BX=$(( TX + ${COORD%%,*} ))
+      local BY=$(( TY + ${COORD##*,} ))
+      if (( BX < 0 || BX >= W || BY >= H )); then return 1; fi
+      if (( BY >= 0 && BOARD[BY * W + BX] != 0 )); then return 1; fi
+   done
+   return 0
+}
+
+lock_piece () {
+   local COORDS=$(get_piece_coords $CUR_PIECE $CUR_ROT)
+   local COLOR=$(( CUR_PIECE + 1 ))
+   for COORD in $COORDS; do
+      local BX=$(( CUR_X + ${COORD%%,*} ))
+      local BY=$(( CUR_Y + ${COORD##*,} ))
+      (( BY >= 0 )) && BOARD[$(( BY * W + BX ))]=$COLOR
+   done
+}
+
+clear_lines () {
+   local Y=$(( H - 1 )) CLEARED=0
+   while (( Y >= 0 )); do
+      local FULL=1 X=0
+      while (( X < W )); do
+         (( BOARD[Y * W + X] == 0 )) && FULL=0
+         (( X++ ))
+      done
+      if (( FULL )); then
+         # shift everything down
+         local R=$Y
+         while (( R > 0 )); do
+            X=0
+            while (( X < W )); do
+               BOARD[R * W + X]=${BOARD[$(( (R-1) * W + X ))]}
+               (( X++ ))
+            done
+            (( R-- ))
+         done
+         X=0
+         while (( X < W )); do BOARD[$X]=0; (( X++ )); done
+         (( CLEARED++ ))
+      else
+         (( Y-- ))
+      fi
+   done
+   if (( CLEARED > 0 )); then
+      local POINTS=$((CLEARED * CLEARED * 100 * LEVEL))
+      SCORE=$(( SCORE + POINTS ))
+      LINESCLEARED=$(( LINESCLEARED + CLEARED ))
+      LEVEL=$(( LINESCLEARED / 10 + 1 ))
+   fi
+}
+
+new_piece () {
+   CUR_PIECE=$(( RANDOM % ${#PIECES[@]} ))
+   CUR_ROT=0
+   CUR_X=$(( W / 2 - 1 ))
+   CUR_Y=0
+}
+
+draw () {
+   # draw board + current piece
+   echo -ne "\e[1;1H"
+   echo -ne "\e[1;33m  TETRIS\e[0m  Score: $SCORE  Level: $LEVEL"
+   echo -ne "\e[2;1H"
+
+   local Y=0
+   while (( Y < H )); do
+      echo -ne "\e[$((Y+2));1H|"
+      local X=0
+      while (( X < W )); do
+         local C=${BOARD[Y * W + X]}
+         if (( C > 0 )); then
+            echo -ne "${COLORS[$C]}[]\e[0m"
+         else
+            echo -ne "  "
+         fi
+         (( X++ ))
+      done
+      echo -ne "|"
+      (( Y++ ))
+   done
+   echo -ne "\e[$((H+2));1H+"
+   X=0
+   while (( X < W )); do echo -ne "--"; (( X++ )); done
+   echo -ne "+"
+
+   # draw current piece
+   local COORDS=$(get_piece_coords $CUR_PIECE $CUR_ROT)
+   local COLOR=${COLORS[$(( CUR_PIECE + 1 ))]}
+   for COORD in $COORDS; do
+      local BX=$(( CUR_X + ${COORD%%,*} ))
+      local BY=$(( CUR_Y + ${COORD##*,} ))
+      if (( BY >= 0 && BY < H && BX >= 0 && BX < W )); then
+         echo -ne "\e[$((BY+2));$((BX*2+2))H${COLOR}[]\e[0m"
+      fi
+   done
+}
+
+main "$@"

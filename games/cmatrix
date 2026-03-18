@@ -1,0 +1,196 @@
+#!/bin/bash
+# bashnative/cmatrix - the Matrix rain effect in pure bash
+# Inspired by cmatrix by Chris Allegretta
+
+main () {
+   case "$1" in
+      --help|-h)
+         echo "Usage: cmatrix [-s] [-b] [-r] [-C COLOR] [-u SPEED]"
+         echo "  -s        screensaver mode (exit on keypress)"
+         echo "  -b        bold characters"
+         echo "  -r        rainbow mode"
+         echo "  -C COLOR  green red blue yellow cyan magenta white"
+         echo "  -u SPEED  delay 0-9 (default 4, lower=faster)"
+         echo "  -k        continuous character randomization"
+         echo "  q         quit"
+         exit 0 ;;
+   esac
+
+   local BOLD=0 RAINBOW=0 SAVER=0 KONTINUOUS=0 DELAY=4 COLOR="green"
+
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -b) BOLD=1 ;;
+         -r) RAINBOW=1 ;;
+         -s) SAVER=1 ;;
+         -k) KONTINUOUS=1 ;;
+         -u) shift; DELAY="${1:-4}" ;;
+         -C) shift; COLOR="${1:-green}" ;;
+         --) shift; break ;;
+      esac
+      shift
+   done
+
+   # color codes
+   local BASE_FG
+   case "$COLOR" in
+      red)     BASE_FG="31" ;;
+      blue)    BASE_FG="34" ;;
+      yellow)  BASE_FG="33" ;;
+      cyan)    BASE_FG="36" ;;
+      magenta) BASE_FG="35" ;;
+      white)   BASE_FG="37" ;;
+      *)       BASE_FG="32" ;; # green default
+   esac
+
+   # character set: half-width katakana + digits + latin
+   local -a CHARS
+   local I
+   # katakana (ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ)
+   for I in ﾊ ﾐ ﾋ ｰ ｳ ｼ ﾅ ﾓ ﾆ ｻ ﾜ ﾂ ｵ ﾘ ｱ ﾎ ﾃ ﾏ ｹ ﾒ ｴ ｶ ｷ ﾑ ﾕ ﾗ ｾ ﾈ ｽ ﾀ ﾇ ﾍ; do
+      CHARS+=("$I")
+   done
+   # digits and some symbols
+   for I in 0 1 2 3 4 5 6 7 8 9 Z Y X W V T S R Q P N M L K J H G F D C B A; do
+      CHARS+=("$I")
+   done
+   local NCHARS=${#CHARS[@]}
+
+   # terminal setup
+   shopt -s checkwinsize; (:)
+   local ROWS=${LINES:-24} COLS=${COLUMNS:-80}
+
+   # keep isig so ^C still sends SIGINT
+   local RUNNING=1
+   stty -echo -icanon min 0 time 0 2>/dev/null
+   echo -ne '\e[?25l\e[?1049h\e[H\e[J'
+   trap 'RUNNING=0' INT TERM
+   trap cleanup EXIT
+   trap 'shopt -s checkwinsize; (:); ROWS=${LINES:-24}; COLS=${COLUMNS:-80}; init_cols' WINCH
+
+   # per-column state
+   local -a COL_LEN COL_SPACE COL_HEAD COL_SPEED
+   # screen buffer: SCREEN[row*COLS+col] = character
+   local -a SCREEN
+
+   init_cols () {
+      local J
+      for (( J=0; J<COLS; J++ )); do
+         COL_LEN[$J]=0
+         COL_SPACE[$J]=$(( RANDOM % ROWS + 1 ))
+         COL_HEAD[$J]=0
+         COL_SPEED[$J]=$(( RANDOM % 3 + 1 ))
+      done
+      # clear screen buffer
+      SCREEN=()
+   }
+   init_cols
+
+   local COUNT=0
+   local SLEEP_T
+   printf -v SLEEP_T '0.0%d' "$DELAY"
+   (( DELAY == 0 )) && SLEEP_T="0.01"
+
+   # rainbow color list
+   local -a RAINBOW_COLORS=(31 32 33 34 35 36)
+
+   while (( RUNNING )); do
+      # non-blocking input
+      local KEY=""
+      IFS= read -r -s -n 1 -t "$SLEEP_T" KEY
+      if [[ -n "$KEY" ]]; then
+         if (( SAVER )); then break; fi
+         [[ "$KEY" == "q" || "$KEY" == "Q" || "$KEY" == $'\x03' ]] && break
+         # runtime speed change
+         if [[ "$KEY" =~ ^[0-9]$ ]]; then
+            DELAY="$KEY"
+            printf -v SLEEP_T '0.0%d' "$DELAY"
+            (( DELAY == 0 )) && SLEEP_T="0.01"
+         fi
+      fi
+
+      (( COUNT++ ))
+      (( COUNT > 3 )) && COUNT=1
+
+      # build frame as single string for fast output
+      local FRAME=""
+
+      local J
+      for (( J=0; J<COLS; J++ )); do
+         # only advance columns whose speed matches
+         (( COUNT > COL_SPEED[J] )) && continue
+
+         if (( COL_SPACE[J] > 0 )); then
+            (( COL_SPACE[J]-- ))
+            continue
+         fi
+
+         local HEAD=${COL_HEAD[$J]}
+         local LEN=${COL_LEN[$J]}
+
+         # draw new head character (bright)
+         if (( HEAD < ROWS )); then
+            local CH="${CHARS[RANDOM % NCHARS]}"
+            local FG="$BASE_FG"
+            (( RAINBOW )) && FG="${RAINBOW_COLORS[RANDOM % 6]}"
+
+            if (( BOLD )); then
+               FRAME+="\e[$((HEAD+1));$((J+1))H\e[1;97m${CH}"
+            else
+               FRAME+="\e[$((HEAD+1));$((J+1))H\e[1;97m${CH}"
+            fi
+            SCREEN[$((HEAD * COLS + J))]="$CH"
+
+            # dim the previous head (now part of trail)
+            if (( HEAD > 0 )); then
+               local PREV_CH="${SCREEN[$(( (HEAD-1) * COLS + J ))]:-}"
+               if [[ -n "$PREV_CH" ]]; then
+                  (( KONTINUOUS )) && PREV_CH="${CHARS[RANDOM % NCHARS]}"
+                  FRAME+="\e[${HEAD};$((J+1))H\e[0;${FG}m${PREV_CH}"
+               fi
+            fi
+
+            # dim further back (darker green / fading)
+            if (( HEAD > 1 )); then
+               local OLD_CH="${SCREEN[$(( (HEAD-2) * COLS + J ))]:-}"
+               if [[ -n "$OLD_CH" ]]; then
+                  (( KONTINUOUS )) && OLD_CH="${CHARS[RANDOM % NCHARS]}"
+                  FRAME+="\e[$((HEAD-1));$((J+1))H\e[2;${FG}m${OLD_CH}"
+               fi
+            fi
+         fi
+
+         # erase tail
+         local TAIL=$(( HEAD - LEN ))
+         if (( TAIL >= 0 && TAIL < ROWS )); then
+            FRAME+="\e[$((TAIL+1));$((J+1))H "
+            SCREEN[$((TAIL * COLS + J))]=""
+         fi
+
+         (( COL_HEAD[J]++ ))
+
+         # stream fully off screen? reset
+         if (( HEAD - LEN >= ROWS )); then
+            COL_LEN[$J]=$(( RANDOM % (ROWS * 3 / 4) + ROWS / 4 ))
+            COL_SPACE[$J]=$(( RANDOM % (ROWS / 2) + 1 ))
+            COL_HEAD[$J]=0
+            COL_SPEED[$J]=$(( RANDOM % 3 + 1 ))
+         fi
+
+         # grow the stream until target length
+         if (( LEN < ROWS )); then
+            (( COL_LEN[J]++ ))
+         fi
+      done
+
+      # single write for entire frame
+      echo -ne "$FRAME"
+   done
+}
+
+cleanup () {
+   echo -ne '\e[0m\e[?25h\e[?1049l'
+   stty echo icanon 2>/dev/null
+}
+
+main "$@"

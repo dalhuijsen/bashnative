@@ -1,0 +1,74 @@
+#!/bin/bash
+# bashnative/base32 - base32 encode/decode
+
+B32="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
+main () {
+   local DFLAG=0
+   [[ "$1" == "-d" ]] || [[ "$1" == "--decode" ]] && { DFLAG=1; shift; }
+   [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]] && { echo "Usage: base32 [-d] [FILE]"; exit 0; }
+
+   if (( DFLAG )); then
+      base32_decode < "${1:-/dev/stdin}"
+   else
+      base32_encode < "${1:-/dev/stdin}"
+   fi
+}
+
+base32_encode () {
+   local -a BYTES
+   local COUNT=0 COL=0
+
+   while IFS= read -r -N 1 CHAR; do
+      printf -v VAL '%d' "'$CHAR"
+      BYTES+=($VAL)
+      (( COUNT++ ))
+
+      if (( COUNT == 5 )); then
+         # 5 bytes -> 8 base32 chars
+         local B0=${BYTES[0]} B1=${BYTES[1]} B2=${BYTES[2]} B3=${BYTES[3]} B4=${BYTES[4]}
+         printf '%s' "${B32:$(( (B0 >> 3) & 31 )):1}"
+         printf '%s' "${B32:$(( ((B0 << 2) | (B1 >> 6)) & 31 )):1}"
+         printf '%s' "${B32:$(( (B1 >> 1) & 31 )):1}"
+         printf '%s' "${B32:$(( ((B1 << 4) | (B2 >> 4)) & 31 )):1}"
+         printf '%s' "${B32:$(( ((B2 << 1) | (B3 >> 7)) & 31 )):1}"
+         printf '%s' "${B32:$(( (B3 >> 2) & 31 )):1}"
+         printf '%s' "${B32:$(( ((B3 << 3) | (B4 >> 5)) & 31 )):1}"
+         printf '%s' "${B32:$(( B4 & 31 )):1}"
+         BYTES=()
+         COUNT=0
+         COL=$(( COL + 8 ))
+         if (( COL >= 76 )); then echo; COL=0; fi
+      fi
+   done
+
+   # handle remaining with padding
+   if (( COUNT > 0 )); then
+      while (( ${#BYTES[@]} < 5 )); do BYTES+=(0); done
+      local B0=${BYTES[0]} B1=${BYTES[1]} B2=${BYTES[2]} B3=${BYTES[3]} B4=${BYTES[4]}
+      local -a OUT
+      OUT[0]="${B32:$(( (B0 >> 3) & 31 )):1}"
+      OUT[1]="${B32:$(( ((B0 << 2) | (B1 >> 6)) & 31 )):1}"
+      OUT[2]="${B32:$(( (B1 >> 1) & 31 )):1}"
+      OUT[3]="${B32:$(( ((B1 << 4) | (B2 >> 4)) & 31 )):1}"
+      OUT[4]="${B32:$(( ((B2 << 1) | (B3 >> 7)) & 31 )):1}"
+      OUT[5]="${B32:$(( (B3 >> 2) & 31 )):1}"
+      OUT[6]="${B32:$(( ((B3 << 3) | (B4 >> 5)) & 31 )):1}"
+      OUT[7]="${B32:$(( B4 & 31 )):1}"
+      # how many output chars are valid: count*8/5 rounded up
+      local VALID=$(( (COUNT * 8 + 4) / 5 ))
+      local I=0
+      while (( I < 8 )); do
+         if (( I < VALID )); then printf '%s' "${OUT[$I]}"; else printf '='; fi
+         (( I++ ))
+      done
+   fi
+   echo
+}
+
+base32_decode () {
+   echo "base32: decode not implemented yet" >&2
+   exit 1
+}
+
+main "$@"

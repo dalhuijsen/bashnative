@@ -1,0 +1,21 @@
+# bashnative/mk - COMPATIBILITY SHIM
+# This file is kept for backwards compatibility.
+# The 'mk' command is now part of 'fs'. See function/fs.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "${BASH_SOURCE[0]}")/..}"
+. "${BASHNATIVE}/function/fs" || return 1
+
+# provide 'mk' as an alias for the old interface:
+#   mk dir  -> fs mkdir
+#   mk fifo -> fs mkfifo
+#   mk nod  -> fs mknod
+if ! type mk >/dev/null 2>&1; then
+   mk () {
+      case "$1" in
+         dir)  shift; fs mkdir "$@" ;;
+         fifo) shift; fs mkfifo "$@" ;;
+         nod)  shift; fs mknod "$@" ;;
+         *)    echo "mk: unknown type '$1' (use dir, fifo, or nod)" >&2; return 1 ;;
+      esac
+   }
+fi

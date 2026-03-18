@@ -1,0 +1,12 @@
+#!/bin/bash
+# bashnative/nohup - run a command immune to hangups
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: nohup COMMAND [ARG]..."
+   echo "Run COMMAND, ignoring hangup signals."
+   exit 0
+fi
+
+trap '' HUP
+"$@" >> nohup.out 2>&1 &
+echo "nohup: appending output to nohup.out"

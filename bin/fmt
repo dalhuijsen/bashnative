@@ -1,0 +1,38 @@
+#!/bin/bash
+# bashnative/fmt - simple optimal text formatter
+
+WIDTH=75
+
+while [[ "${1:0:1}" == "-" ]]; do
+   case "$1" in
+      -w) shift; WIDTH="$1" ;;
+      --help|-h) echo "Usage: fmt [-w WIDTH] [FILE]"; exit 0 ;;
+      --) shift; break ;;
+      *) break ;;
+   esac
+   shift
+done
+
+LINE=""
+while IFS= read -r INPUT; do
+   # empty line = paragraph break
+   if [[ -z "$INPUT" ]]; then
+      [[ -n "$LINE" ]] && echo "$LINE"
+      echo
+      LINE=""
+      continue
+   fi
+
+   for WORD in $INPUT; do
+      if [[ -z "$LINE" ]]; then
+         LINE="$WORD"
+      elif (( ${#LINE} + 1 + ${#WORD} > WIDTH )); then
+         echo "$LINE"
+         LINE="$WORD"
+      else
+         LINE="${LINE} ${WORD}"
+      fi
+   done
+done < "${1:-/dev/stdin}"
+
+[[ -n "$LINE" ]] && echo "$LINE"

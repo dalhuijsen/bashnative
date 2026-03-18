@@ -1,0 +1,8 @@
+#!/bin/bash
+# bashnative/nl - number lines of files
+
+N=0
+while IFS= read -r LINE; do
+   (( N++ ))
+   printf "%6d\t%s\n" "$N" "$LINE"
+done < "${1:-/dev/stdin}"

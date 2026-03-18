@@ -1,0 +1,71 @@
+#!/bin/bash
+# bashnative/ping - test host reachability
+# Can't do ICMP from bash (needs raw sockets).
+# Instead we test TCP connectivity and measure time.
+
+COUNT=4
+PORT=80
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -c) shift; COUNT="$1" ;;
+         -p) shift; PORT="$1" ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   local HOST="$1"
+   if [[ -z "$HOST" ]]; then
+      echo "ping: missing host" >&2
+      exit 1
+   fi
+
+   echo "PING ${HOST} via TCP port ${PORT} (bash /dev/tcp)"
+   echo "Note: this is TCP connectivity test, not ICMP ping"
+   echo ""
+
+   local OK=0 FAIL=0 I=0
+   while (( I < COUNT )); do
+      local START=$SECONDS
+
+      exec 3<>/dev/tcp/${HOST}/${PORT} 2>/dev/null
+      local RET=$?
+
+      local ELAPSED=$(( SECONDS - START ))
+
+      if [[ $RET -eq 0 ]]; then
+         exec 3>&-
+         echo "Connected to ${HOST}:${PORT} - time=${ELAPSED}s"
+         (( OK++ ))
+      else
+         echo "Connection to ${HOST}:${PORT} failed"
+         (( FAIL++ ))
+      fi
+
+      (( I++ ))
+      (( I < COUNT )) && { read -t 1 < <(:) 2>/dev/null || true; }
+   done
+
+   echo ""
+   echo "--- ${HOST} TCP ping statistics ---"
+   echo "${COUNT} attempts, ${OK} connected, ${FAIL} failed"
+}
+
+helpmsg () {
+echo "Usage: ping [-c COUNT] [-p PORT] HOST
+Test TCP connectivity to HOST (not real ICMP ping).
+
+  -c COUNT   number of attempts (default: 4)
+  -p PORT    TCP port to test (default: 80)
+  -h         display this help and exit
+
+Note: bash cannot send ICMP packets (needs raw sockets).
+This uses /dev/tcp to test TCP reachability instead.
+"
+}
+
+main "$@"

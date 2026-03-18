@@ -1,0 +1,15 @@
+#!/bin/bash
+# bashnative/groups - print group memberships
+# bash doesn't expose getgroups(2) but we can read /etc/group
+if [[ -r /etc/group ]]; then
+   RESULT=""
+   while IFS=: read -r GNAME _ _ MEMBERS; do
+      # check if our user is in the member list or if it's our primary group
+      if [[ ":${MEMBERS}:" == *":${USER}:"* ]] || [[ "${MEMBERS}" == "${USER}" ]]; then
+         RESULT="${RESULT}${GNAME} "
+      fi
+   done < /etc/group
+   echo "${RESULT% }"
+else
+   echo "$USER"
+fi

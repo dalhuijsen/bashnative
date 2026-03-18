@@ -1,0 +1,37 @@
+#!/bin/bash
+# bashnative/rain - animated raindrops in your terminal
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: rain"; echo "Press ctrl-c to stop."; exit 0; }
+
+   local ROWS="${LINES:-24}"
+   local COLS="${COLUMNS:-80}"
+   local DROPS=".,:;'|"
+
+   # hide cursor, clear screen
+   echo -ne '\e[?25l\e[H\e[J'
+   trap 'echo -ne "\e[?25h\e[H\e[J"; exit' EXIT INT TERM
+
+   while true; do
+      shopt -s checkwinsize; (:)
+      ROWS="${LINES:-24}"
+      COLS="${COLUMNS:-80}"
+
+      local X=$(( RANDOM % COLS + 1 ))
+      local Y=$(( RANDOM % ROWS + 1 ))
+      local DROP="${DROPS:$(( RANDOM % ${#DROPS} )):1}"
+
+      echo -ne "\e[${Y};${X}H${DROP}"
+
+      # occasionally clear a random spot (so screen doesn't fill up)
+      if (( RANDOM % 3 == 0 )); then
+         X=$(( RANDOM % COLS + 1 ))
+         Y=$(( RANDOM % ROWS + 1 ))
+         echo -ne "\e[${Y};${X}H "
+      fi
+
+      read -t 0.03 -n 1 < /dev/tty 2>/dev/null && break
+   done
+}
+
+main "$@"

@@ -1,0 +1,56 @@
+#!/bin/bash
+# bashnative/tsort - perform topological sort
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: tsort [FILE]"
+      echo "Read pairs of strings from FILE indicating ordering and output a topological sort."
+      exit 0
+   fi
+
+   local -A INDEGREE
+   local -A EDGES   # space-separated adjacency list
+   local -A SEEN
+
+   # read pairs
+   while read -r A B; do
+      [[ -z "$A" ]] && continue
+      SEEN["$A"]=1
+      [[ -n "$B" ]] && SEEN["$B"]=1
+      if [[ -n "$B" ]]; then
+         EDGES["$A"]="${EDGES[$A]} $B"
+         INDEGREE["$B"]=$(( ${INDEGREE[$B]:-0} + 1 ))
+      fi
+      [[ -z "${INDEGREE[$A]+x}" ]] && INDEGREE["$A"]=0
+   done < "${1:-/dev/stdin}"
+
+   # Kahn's algorithm
+   local -a QUEUE
+   for NODE in "${!SEEN[@]}"; do
+      if (( ${INDEGREE[$NODE]:-0} == 0 )); then
+         QUEUE+=("$NODE")
+      fi
+   done
+
+   local COUNT=0
+   while (( ${#QUEUE[@]} > 0 )); do
+      local NODE="${QUEUE[0]}"
+      QUEUE=("${QUEUE[@]:1}")
+      echo "$NODE"
+      (( COUNT++ ))
+
+      for NEIGHBOR in ${EDGES[$NODE]}; do
+         INDEGREE["$NEIGHBOR"]=$(( ${INDEGREE[$NEIGHBOR]} - 1 ))
+         if (( ${INDEGREE[$NEIGHBOR]} == 0 )); then
+            QUEUE+=("$NEIGHBOR")
+         fi
+      done
+   done
+
+   if (( COUNT < ${#SEEN[@]} )); then
+      echo "tsort: cycle detected" >&2
+      exit 1
+   fi
+}
+
+main "$@"

@@ -1,0 +1,78 @@
+#!/bin/bash
+# bashnative/tail - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Uses a circular buffer (array) to keep last N lines in memory
+
+NUMLINES=10
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -n) shift; NUMLINES="$1" ;;
+         --help|-h) helpmsg; exit 0 ;;
+         -[0-9]*) NUMLINES="${1#-}" ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      tail_stream
+   else
+      MULTI=$(( $# > 1 ))
+      for FILE in "$@"; do
+         if (( MULTI )); then
+            echo "==> ${FILE} <=="
+         fi
+         if [[ ! -r "$FILE" ]]; then
+            echo "tail: cannot open '${FILE}' for reading: No such file or directory" >&2
+         else
+            tail_stream < "$FILE"
+         fi
+      done
+   fi
+}
+
+tail_stream () {
+   # circular buffer -- keeps only last NUMLINES lines
+   local -a BUF
+   local POS=0 COUNT=0
+
+   while IFS= read -r LINE; do
+      BUF[$(( POS % NUMLINES ))]="$LINE"
+      (( POS++ ))
+      (( COUNT++ ))
+   done
+
+   if (( COUNT < NUMLINES )); then
+      # fewer lines than requested, print all
+      local I=0
+      while (( I < COUNT )); do
+         echo "${BUF[$I]}"
+         (( I++ ))
+      done
+   else
+      # print from oldest to newest in the circular buffer
+      local START=$(( POS % NUMLINES ))
+      local I=0
+      while (( I < NUMLINES )); do
+         echo "${BUF[$(( (START + I) % NUMLINES ))]}"
+         (( I++ ))
+      done
+   fi
+}
+
+helpmsg () {
+echo "Usage: tail [OPTION]... [FILE]...
+Print the last 10 lines of each FILE to standard output.
+
+  -n NUM   output the last NUM lines
+  -h       display this help and exit
+"
+}
+
+main "$@"

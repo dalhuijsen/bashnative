@@ -1,0 +1,41 @@
+#!/bin/bash
+# bashnative/timeout - run a command with a time limit
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: timeout DURATION COMMAND [ARG]..."
+      echo "Start COMMAND, and kill it if still running after DURATION seconds."
+      exit 0
+   fi
+
+   local DUR="$1"
+   shift
+
+   if [[ -z "$DUR" ]] || [[ -z "$1" ]]; then
+      echo "timeout: missing operand" >&2
+      exit 1
+   fi
+
+   # run command in background
+   "$@" &
+   local PID=$!
+
+   # watchdog in background
+   (
+      read -t "$DUR" < <(:) 2>/dev/null || sleep "$DUR" 2>/dev/null
+      kill "$PID" 2>/dev/null
+   ) &
+   local WATCHDOG=$!
+
+   # wait for command
+   wait "$PID" 2>/dev/null
+   local RET=$?
+
+   # kill watchdog if command finished in time
+   kill "$WATCHDOG" 2>/dev/null
+   wait "$WATCHDOG" 2>/dev/null
+
+   exit $RET
+}
+
+main "$@"

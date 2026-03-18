@@ -1,0 +1,31 @@
+#!/bin/bash
+# bashnative/chown - change file owner and group
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: chown OWNER[:GROUP] FILE..."
+      echo "Change the owner and/or group of each FILE."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "chown: missing operand" >&2
+      exit 1
+   fi
+
+   local OWNER="$1"
+   shift
+
+   for FILE in "$@"; do
+      fs chown "$OWNER" "$FILE"
+      if [[ $? -ne 0 ]]; then
+         exit 1
+      fi
+   done
+}
+
+main "$@"

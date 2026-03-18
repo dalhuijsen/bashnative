@@ -1,0 +1,59 @@
+#!/bin/bash
+# bashnative/tree - list contents of directories in a tree-like format
+
+DIRS=0
+FILES=0
+
+main () {
+   local DIR="${1:-.}"
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: tree [DIRECTORY]"
+      exit 0
+   fi
+
+   echo "$DIR"
+   tree_walk "$DIR" ""
+   echo
+   echo "${DIRS} directories, ${FILES} files"
+}
+
+tree_walk () {
+   local DIR="$1"
+   local PREFIX="$2"
+
+   # collect entries (skip . and ..)
+   local -a ENTRIES
+   for ITEM in "$DIR"/*; do
+      [[ -e "$ITEM" ]] || continue
+      ENTRIES+=("$ITEM")
+   done
+
+   local COUNT=${#ENTRIES[@]}
+   local I=0
+
+   for ITEM in "${ENTRIES[@]}"; do
+      (( I++ ))
+      local NAME="${ITEM##*/}"
+      local CONNECTOR
+
+      if (( I == COUNT )); then
+         CONNECTOR="${PREFIX}\`-- "
+         NEXTPREFIX="${PREFIX}    "
+      else
+         CONNECTOR="${PREFIX}|-- "
+         NEXTPREFIX="${PREFIX}|   "
+      fi
+
+      if [[ -d "$ITEM" ]] && [[ ! -L "$ITEM" ]]; then
+         echo "${CONNECTOR}${NAME}"
+         (( DIRS++ ))
+         tree_walk "$ITEM" "$NEXTPREFIX"
+      else
+         echo "${CONNECTOR}${NAME}"
+         (( FILES++ ))
+      fi
+   done
+}
+
+main "$@"

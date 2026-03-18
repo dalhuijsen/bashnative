@@ -1,0 +1,20 @@
+#!/bin/bash
+# bashnative/rmdir - remove empty directories
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: rmdir DIRECTORY..."
+      echo "Remove the DIRECTORY(ies), if they are empty."
+      exit 0
+   fi
+
+   for DIR in "$@"; do
+      fs rmdir "$DIR"
+   done
+}
+
+main "$@"

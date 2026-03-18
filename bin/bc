@@ -1,0 +1,49 @@
+#!/bin/bash
+# bashnative/bc - an arbitrary precision calculator language
+# Well... bash integer arithmetic only.  Not arbitrary precision.  ;)
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: bc"
+      echo "Integer calculator using bash arithmetic."
+      echo "Enter expressions, one per line. Ctrl-D to quit."
+      exit 0
+   fi
+
+   if [[ -t 0 ]]; then
+      # interactive
+      while echo -n "> " && read -r EXPR; do
+         bc_eval "$EXPR"
+      done
+   else
+      # pipe mode
+      while read -r EXPR; do
+         bc_eval "$EXPR"
+      done
+   fi
+}
+
+bc_eval () {
+   local EXPR="$1"
+   [[ -z "$EXPR" ]] && return
+
+   # strip comments
+   EXPR="${EXPR%%#*}"
+   # skip empty/quit
+   [[ -z "$EXPR" ]] && return
+   [[ "$EXPR" == "quit" ]] && exit 0
+
+   # translate bc syntax to bash: ^ -> ** for exponentiation
+   EXPR="${EXPR//^/**}"
+
+   # evaluate
+   local RESULT
+   RESULT=$(( EXPR )) 2>/dev/null
+   if [[ $? -eq 0 ]]; then
+      echo "$RESULT"
+   else
+      echo "error: invalid expression" >&2
+   fi
+}
+
+main "$@"

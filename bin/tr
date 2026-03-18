@@ -1,0 +1,121 @@
+#!/bin/bash
+# bashnative/tr - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Limited tr: supports simple character-for-character translation
+# and -d (delete) mode.  No character classes like [:upper:] yet.
+
+DFLAG=
+
+# expand ranges like a-z, A-Z, 0-9 into full character sets
+_expand_ranges () {
+   local S="$1" OUT="" I=0
+   while (( I < ${#S} )); do
+      local CH="${S:$I:1}"
+      # look for X-Y pattern
+      if (( I + 2 < ${#S} )) && [[ "${S:$((I+1)):1}" == "-" ]]; then
+         local START="$CH"
+         local END="${S:$((I+2)):1}"
+         # use printf to get ordinal values
+         local ORD_S ORD_E
+         printf -v ORD_S '%d' "'$START"
+         printf -v ORD_E '%d' "'$END"
+         if (( ORD_S <= ORD_E )); then
+            local J=$ORD_S
+            while (( J <= ORD_E )); do
+               printf -v CH '\\x'"$(printf '%02x' "$J")"
+               OUT="${OUT}$(printf "$CH")"
+               (( J++ ))
+            done
+            (( I += 3 ))
+            continue
+         fi
+      fi
+      OUT="${OUT}${CH}"
+      (( I++ ))
+   done
+   printf '%s' "$OUT"
+}
+
+main () {
+   if [[ "$1" == "-d" ]]; then
+      DFLAG=1
+      shift
+   fi
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      helpmsg
+      exit 0
+   fi
+
+   SET1="$(_expand_ranges "$1")"
+   SET2="$(_expand_ranges "$2")"
+
+   if [[ -z "$SET1" ]]; then
+      echo "tr: missing operand" >&2
+      exit 1
+   fi
+
+   if [[ -n "$DFLAG" ]]; then
+      tr_delete
+   else
+      tr_translate
+   fi
+}
+
+tr_delete () {
+   while IFS= read -r -N 1 CHAR; do
+      # check if char is in SET1
+      local FOUND=0
+      local I=0
+      while (( I < ${#SET1} )); do
+         if [[ "$CHAR" == "${SET1:$I:1}" ]]; then
+            FOUND=1
+            break
+         fi
+         (( I++ ))
+      done
+      (( FOUND )) || printf '%s' "$CHAR"
+   done
+}
+
+tr_translate () {
+   if [[ -z "$SET2" ]]; then
+      echo "tr: missing operand after '$SET1'" >&2
+      exit 1
+   fi
+
+   while IFS= read -r -N 1 CHAR; do
+      local I=0 FOUND=0
+      while (( I < ${#SET1} )); do
+         if [[ "$CHAR" == "${SET1:$I:1}" ]]; then
+            # replace with corresponding char from SET2
+            # if SET2 is shorter, use last char of SET2
+            local J=$I
+            (( J >= ${#SET2} )) && J=$(( ${#SET2} - 1 ))
+            printf '%s' "${SET2:$J:1}"
+            FOUND=1
+            break
+         fi
+         (( I++ ))
+      done
+      (( FOUND )) || printf '%s' "$CHAR"
+   done
+}
+
+helpmsg () {
+echo "Usage: tr [OPTION]... SET1 [SET2]
+Translate or delete characters.
+
+  -d         delete characters in SET1, do not translate
+  -h, --help display this help and exit
+
+Example:
+  echo hello | tr 'el' 'ip'   -> hippo
+  echo hello | tr -d 'l'      -> heo
+"
+}
+
+main "$@"

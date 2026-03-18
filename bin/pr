@@ -1,0 +1,55 @@
+#!/bin/bash
+# bashnative/pr - paginate or columnate files for printing
+
+PAGELENGTH=66
+HEADER=""
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -l) shift; PAGELENGTH="$1" ;;
+         -h) shift; HEADER="$1" ;;
+         --help) echo "Usage: pr [-l LENGTH] [-h HEADER] [FILE]"; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   local FILE="${1:--}"
+   local PAGE=1 LINE=0
+
+   [[ -z "$HEADER" ]] && HEADER="$FILE"
+
+   while IFS= read -r TEXT; do
+      if (( LINE == 0 )); then
+         # print header
+         echo ""
+         printf "%(%Y-%m-%d %H:%M)T  %s  Page %d\n" -1 "$HEADER" "$PAGE"
+         echo ""
+         LINE=3
+      fi
+
+      echo "$TEXT"
+      (( LINE++ ))
+
+      if (( LINE >= PAGELENGTH - 3 )); then
+         # footer
+         echo ""
+         echo ""
+         echo ""
+         LINE=0
+         (( PAGE++ ))
+      fi
+   done < "${FILE}"
+
+   # final page footer
+   if (( LINE > 0 )); then
+      while (( LINE < PAGELENGTH )); do
+         echo ""
+         (( LINE++ ))
+      done
+   fi
+}
+
+main "$@"

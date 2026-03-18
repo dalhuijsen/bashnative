@@ -1,0 +1,40 @@
+#!/bin/bash
+# bashnative/env - print environment or run a command in modified environment
+
+main () {
+   if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
+      if [[ "$1" == "--help" ]]; then
+         helpmsg
+         exit 0
+      fi
+      # no args: print environment
+      while IFS='=' read -r -d '' K V; do
+         echo "${K}=${V}"
+      done < /proc/self/environ 2>/dev/null || {
+         # /proc not available (macOS), use export
+         export -p | while read -r LINE; do
+            # strip 'declare -x '
+            echo "${LINE#declare -x }"
+         done
+      }
+      exit 0
+   fi
+
+   # parse env VAR=VAL... COMMAND
+   while [[ "$1" == *=* ]]; do
+      export "$1"
+      shift
+   done
+
+   if [[ -n "$1" ]]; then
+      exec "$@"
+   fi
+}
+
+helpmsg () {
+echo "Usage: env [VAR=VALUE]... [COMMAND [ARG]...]
+Print the environment or run COMMAND in a modified environment.
+"
+}
+
+main "$@"

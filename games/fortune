@@ -1,0 +1,61 @@
+#!/bin/bash
+# bashnative/fortune - print a random, hopefully interesting, adage
+
+# built-in fortune database (because we can't assume any files exist)
+FORTUNES=(
+"The only way to do great work is to love what you do."
+"In the beginning was the command line."
+"There are two ways to write error-free programs; only the third one works."
+"UNIX is basically a simple operating system, but you have to be a genius to understand the simplicity."
+"Any sufficiently advanced technology is indistinguishable from magic."
+"First, solve the problem. Then, write the code."
+"It works on my machine."
+"There is no place like ~"
+"To understand recursion, you must first understand recursion."
+"A good programmer is someone who always looks both ways before crossing a one-way street."
+"If debugging is the process of removing bugs, then programming must be the process of putting them in."
+"Software is like entropy: It is difficult to grasp, weighs nothing, and obeys the Second Law of Thermodynamics; i.e., it always increases."
+"There are only two hard things in Computer Science: cache invalidation and naming things."
+"// This code is a mess, but it works. Do not touch."
+"The best thing about a boolean is even if you are wrong, you are only off by a bit."
+"A SQL query walks into a bar, walks up to two tables and asks... Can I join you?"
+"Why do programmers prefer dark mode? Because light attracts bugs."
+"Real programmers count from 0."
+"The computer was born to solve problems that did not exist before."
+"It compiles. Ship it."
+"chmod 777 is not a security strategy."
+"This is fine. Everything is fine."
+"Have you tried turning it off and on again?"
+"Works as designed. Design was wrong."
+"One does not simply mass-assign ActiveRecord attributes."
+"I have not failed. I have just found 10,000 ways that won't work."
+"If at first you don't succeed, call it version 1.0."
+"99 little bugs in the code, 99 little bugs... Take one down, patch it around, 127 little bugs in the code."
+"The only thing worse than no documentation is wrong documentation."
+"bash: the duct tape of the internet."
+)
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: fortune"; exit 0; }
+
+   # if fortune file exists, use it
+   if [[ -n "$1" ]] && [[ -r "$1" ]]; then
+      local -a CUSTOM
+      local ENTRY=""
+      while IFS= read -r LINE; do
+         if [[ "$LINE" == "%" ]]; then
+            [[ -n "$ENTRY" ]] && CUSTOM+=("$ENTRY")
+            ENTRY=""
+         else
+            [[ -n "$ENTRY" ]] && ENTRY="${ENTRY}"$'\n'
+            ENTRY="${ENTRY}${LINE}"
+         fi
+      done < "$1"
+      [[ -n "$ENTRY" ]] && CUSTOM+=("$ENTRY")
+      echo "${CUSTOM[$(( RANDOM % ${#CUSTOM[@]} ))]}"
+   else
+      echo "${FORTUNES[$(( RANDOM % ${#FORTUNES[@]} ))]}"
+   fi
+}
+
+main "$@"

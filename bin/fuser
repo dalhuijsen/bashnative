@@ -1,0 +1,41 @@
+#!/bin/bash
+# bashnative/fuser - identify processes using files
+# Scans /proc/[pid]/fd (Linux only)
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: fuser FILE..."; exit 0; }
+
+   if [[ -z "$1" ]]; then
+      echo "fuser: missing file" >&2
+      exit 1
+   fi
+
+   for TARGET in "$@"; do
+      # resolve to absolute path
+      local ABSPATH
+      if [[ "${TARGET:0:1}" == "/" ]]; then
+         ABSPATH="$TARGET"
+      else
+         ABSPATH="${PWD}/${TARGET}"
+      fi
+
+      printf "%s:" "$TARGET"
+
+      for PROCDIR in /proc/[0-9]*; do
+         local PID="${PROCDIR##*/}"
+         [[ -d "${PROCDIR}/fd" ]] || continue
+         for FD in "${PROCDIR}/fd"/*; do
+            [[ -L "$FD" ]] || continue
+            local LINK
+            LINK="$(readlink "$FD" 2>/dev/null)" || continue
+            if [[ "$LINK" == "$ABSPATH" ]]; then
+               printf " %s" "$PID"
+               break
+            fi
+         done
+      done
+      echo
+   done
+}
+
+main "$@"

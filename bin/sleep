@@ -1,0 +1,22 @@
+#!/bin/bash
+# bashnative/sleep - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Pure bash sleep using read -t (supports fractional seconds in bash 4+)
+
+main () {
+   if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
+      echo "Usage: sleep SECONDS[.FRAC]"
+      [[ -z "$1" ]] && exit 1 || exit 0
+   fi
+
+   local SECS="$1"
+   SECS="${SECS%s}"   # strip trailing 's'
+
+   # read -t on a pipe opened read-write (<>) so the fd stays open
+   read -t "$SECS" <> <(:) 2>/dev/null || true
+}
+
+main "$@"

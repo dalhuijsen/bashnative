@@ -1,0 +1,47 @@
+#!/bin/bash
+# bashnative/factor - print prime factors
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: factor [NUMBER]..."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]]; then
+      # read from stdin
+      while read -r NUM; do
+         factor_one "$NUM"
+      done
+   else
+      for NUM in "$@"; do
+         factor_one "$NUM"
+      done
+   fi
+}
+
+factor_one () {
+   local N="$1"
+   local ORIG="$N"
+   local -a FACTORS
+
+   if (( N < 2 )); then
+      echo "${N}:"
+      return
+   fi
+
+   local D=2
+   while (( D * D <= N )); do
+      while (( N % D == 0 )); do
+         FACTORS+=("$D")
+         N=$(( N / D ))
+      done
+      (( D++ ))
+   done
+   if (( N > 1 )); then
+      FACTORS+=("$N")
+   fi
+
+   echo "${ORIG}: ${FACTORS[*]}"
+}
+
+main "$@"

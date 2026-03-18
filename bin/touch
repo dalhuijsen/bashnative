@@ -1,0 +1,32 @@
+#!/bin/bash
+# bashnative/touch - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# create files or update timestamps
+# THE TRICK: >> creates file if not exists, doesn't truncate if it does
+# can't update timestamps in pure bash though :(
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: touch FILE..."
+      echo "Update the access and modification times of each FILE to the current time."
+      echo "A FILE argument that does not exist is created empty."
+      exit 0
+   fi
+
+   for FILE in "$@"; do
+      if [[ -e "$FILE" ]]; then
+         # file exists; we can't update timestamp in pure bash
+         # but we can read+write the first byte to trigger atime/mtime update
+         # actually the simplest: append nothing
+         >> "$FILE"
+      else
+         # create empty file  -- THE ENGINE
+         > "$FILE"
+      fi
+   done
+}
+
+main "$@"

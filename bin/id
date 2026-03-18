@@ -1,0 +1,67 @@
+#!/bin/bash
+# bashnative/id - print real and effective user and group IDs
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: id [-u] [-g] [-n]"
+      exit 0
+   fi
+
+   local UFLAG=0 GFLAG=0 NFLAG=0
+
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -u) UFLAG=1 ;;
+         -g) GFLAG=1 ;;
+         -n) NFLAG=1 ;;
+         -un|-nu) UFLAG=1; NFLAG=1 ;;
+         -gn|-ng) GFLAG=1; NFLAG=1 ;;
+      esac
+      shift
+   done
+
+   # get uid from bash
+   local UID_N="${UID:-$(id -u 2>/dev/null || echo 0)}"
+   local USER_N="${USER:-unknown}"
+
+   # get gid from /etc/passwd
+   local GID_N="" GROUP_N=""
+   if [[ -r /etc/passwd ]]; then
+      while IFS=: read -r PU _ PUID PGID _ _ _; do
+         if [[ "$PU" == "$USER_N" ]]; then
+            GID_N="$PGID"
+            break
+         fi
+      done < /etc/passwd
+   fi
+   GID_N="${GID_N:-0}"
+
+   # get group name
+   if [[ -r /etc/group ]]; then
+      while IFS=: read -r GN _ GGID _; do
+         if [[ "$GGID" == "$GID_N" ]]; then
+            GROUP_N="$GN"
+            break
+         fi
+      done < /etc/group
+   fi
+   GROUP_N="${GROUP_N:-$USER_N}"
+
+   if (( UFLAG )); then
+      if (( NFLAG )); then
+         echo "$USER_N"
+      else
+         echo "$UID_N"
+      fi
+   elif (( GFLAG )); then
+      if (( NFLAG )); then
+         echo "$GROUP_N"
+      else
+         echo "$GID_N"
+      fi
+   else
+      echo "uid=${UID_N}(${USER_N}) gid=${GID_N}(${GROUP_N})"
+   fi
+}
+
+main "$@"

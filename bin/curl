@@ -1,8 +1,124 @@
 #!/bin/bash
-exec 3<>/dev/tcp/www.google.com/80
-echo -e "GET / HTTP/1.1\r\nhost: http://www.google.com\r\nConnection: close\r\n\r\n" >&3
-cat <&3
+# bashnative/curl - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
+# HTTP client via /dev/tcp -- supports GET and POST
+# No HTTPS (bash can't do TLS without external tools)
 
+OUTFILE=
+SFLAG=0
+DATA=
+METHOD=GET
+HEADERS=()
 
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -o) shift; OUTFILE="$1" ;;
+         -s|--silent) SFLAG=1 ;;
+         -d|--data) shift; DATA="$1"; METHOD=POST ;;
+         -X) shift; METHOD="$1" ;;
+         -H) shift; HEADERS+=("$1") ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
 
+   local URL="$1"
+   if [[ -z "$URL" ]]; then
+      echo "curl: missing URL" >&2
+      exit 1
+   fi
+
+   # parse URL
+   local PROTO="${URL%%://*}"
+   local REST="${URL#*://}"
+   # handle URLs without protocol
+   [[ "$PROTO" == "$URL" ]] && REST="$URL" && PROTO="http"
+   local HOST="${REST%%/*}"
+   local URLPATH="/${REST#*/}"
+   local PORT=80
+
+   if [[ "$PROTO" == "https" ]]; then
+      echo "curl: HTTPS not supported (bash can't do TLS)" >&2
+      exit 1
+   fi
+
+   if [[ "$HOST" == *:* ]]; then
+      PORT="${HOST##*:}"
+      HOST="${HOST%:*}"
+   fi
+
+   [[ "$URLPATH" == "/$REST" ]] && URLPATH="/"
+
+   # open TCP connection
+   exec 3<>/dev/tcp/${HOST}/${PORT} 2>/dev/null
+   if [[ $? -ne 0 ]]; then
+      echo "curl: failed to connect to ${HOST}:${PORT}" >&2
+      exit 1
+   fi
+
+   # build request
+   echo -ne "${METHOD} ${URLPATH} HTTP/1.1\r\n" >&3
+   echo -ne "Host: ${HOST}\r\n" >&3
+   echo -ne "User-Agent: bashnative-curl/1.0\r\n" >&3
+   echo -ne "Accept: */*\r\n" >&3
+
+   for H in "${HEADERS[@]}"; do
+      echo -ne "${H}\r\n" >&3
+   done
+
+   if [[ -n "$DATA" ]]; then
+      echo -ne "Content-Length: ${#DATA}\r\n" >&3
+      echo -ne "Content-Type: application/x-www-form-urlencoded\r\n" >&3
+   fi
+
+   echo -ne "Connection: close\r\n" >&3
+   echo -ne "\r\n" >&3
+
+   [[ -n "$DATA" ]] && echo -n "$DATA" >&3
+
+   # read response
+   local IN_BODY=0
+   if [[ -n "$OUTFILE" ]]; then
+      > "$OUTFILE"
+      while IFS= read -r LINE <&3; do
+         if (( IN_BODY )); then
+            echo "$LINE" >> "$OUTFILE"
+         elif [[ "$LINE" == $'\r' ]] || [[ -z "$LINE" ]]; then
+            IN_BODY=1
+         fi
+      done
+   else
+      while IFS= read -r LINE <&3; do
+         if (( IN_BODY )); then
+            echo "$LINE"
+         elif [[ "$LINE" == $'\r' ]] || [[ -z "$LINE" ]]; then
+            IN_BODY=1
+         fi
+      done
+   fi
+
+   exec 3>&-
+}
+
+helpmsg () {
+echo "Usage: curl [OPTIONS] URL
+Transfer a URL via HTTP (no HTTPS).
+
+  -o FILE     write output to FILE
+  -s          silent mode
+  -d DATA     send DATA as POST body
+  -X METHOD   specify request method (GET, POST, etc)
+  -H HEADER   add custom header
+  -h          display this help and exit
+
+Uses bash /dev/tcp for networking. No external tools needed.
+"
+}
+
+main "$@"

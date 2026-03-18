@@ -1,0 +1,20 @@
+#!/bin/bash
+# bashnative/tty - print terminal name
+if [[ -t 0 ]]; then
+   # /proc/self/fd/0 is a symlink to the tty on Linux
+   if [[ -L /proc/self/fd/0 ]]; then
+      readlink /proc/self/fd/0 2>/dev/null || echo "not a tty"
+   elif [[ -e /dev/fd/0 ]]; then
+      # macOS: /dev/fd/0 exists; try to find tty from ps
+      PS_TTY="$(ps -p $$ -o tty= 2>/dev/null)"
+      if [[ -n "$PS_TTY" ]]; then
+         echo "/dev/$PS_TTY"
+      else
+         echo "not a tty"
+         exit 1
+      fi
+   fi
+else
+   echo "not a tty"
+   exit 1
+fi

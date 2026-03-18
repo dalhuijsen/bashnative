@@ -1,0 +1,35 @@
+#!/bin/bash
+# bashnative/pathchk - check whether file names are valid or portable
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: pathchk NAME..."; exit 0; }
+
+   local RET=0
+   for NAME in "$@"; do
+      # check for empty
+      if [[ -z "$NAME" ]]; then
+         echo "pathchk: empty file name" >&2
+         RET=1
+         continue
+      fi
+      # check length (POSIX PATH_MAX is typically 4096)
+      if (( ${#NAME} > 4096 )); then
+         echo "pathchk: name too long: '${NAME}'" >&2
+         RET=1
+         continue
+      fi
+      # check each component length (POSIX NAME_MAX is typically 255)
+      local OLDIFS="$IFS"
+      IFS="/"
+      for COMPONENT in $NAME; do
+         if (( ${#COMPONENT} > 255 )); then
+            echo "pathchk: component too long: '${COMPONENT}'" >&2
+            RET=1
+         fi
+      done
+      IFS="$OLDIFS"
+   done
+   exit $RET
+}
+
+main "$@"

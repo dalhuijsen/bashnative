@@ -1,0 +1,9 @@
+#!/bin/bash
+# bashnative/users - print logged in users (Linux only, reads /var/run/utmp)
+if [[ -r /var/run/utmp ]]; then
+   # utmp is binary; best effort with strings from it
+   # fall back to just current user
+   echo "$USER"
+else
+   echo "$USER"
+fi

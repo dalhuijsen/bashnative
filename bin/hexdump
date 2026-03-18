@@ -1,0 +1,25 @@
+#!/bin/bash
+# bashnative/hexdump - display file contents in hexadecimal
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: hexdump [FILE]"
+      exit 0
+   fi
+
+   local OFFSET=0
+
+   while IFS= read -r -N 1 CHAR; do
+      if (( OFFSET % 16 == 0 )); then
+         (( OFFSET > 0 )) && echo
+         printf "%08x " "$OFFSET"
+      fi
+      printf " %02x" "'$CHAR"
+      (( OFFSET++ ))
+   done < "${1:-/dev/stdin}"
+
+   echo
+   printf "%08x\n" "$OFFSET"
+}
+
+main "$@"

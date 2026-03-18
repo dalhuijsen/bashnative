@@ -1,0 +1,69 @@
+#!/bin/bash
+# bashnative/uname - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Uses bash builtins: $OSTYPE, $MACHTYPE, $HOSTNAME, $BASH_VERSINFO
+# and /proc/version or /proc/sys/kernel/* on Linux
+
+SYSNAME="${OSTYPE%%[0-9]*}"  # e.g. linux-gnu -> linux, darwin -> darwin
+SYSNAME="${SYSNAME%-gnu}"    # strip -gnu suffix
+# capitalize first letter
+SYSNAME="${SYSNAME^}"
+
+NODENAME="$HOSTNAME"
+MACHINE="${MACHTYPE%%-*}"    # e.g. x86_64-apple-darwin -> x86_64
+
+# try to get kernel release from /proc
+if [[ -r /proc/version ]]; then
+   KVER="$(</proc/version)"
+   RELEASE="${KVER#* version }"
+   RELEASE="${RELEASE%% *}"
+else
+   RELEASE="unknown"
+fi
+
+main () {
+   if [[ -z "$1" ]]; then
+      echo "$SYSNAME"
+      exit 0
+   fi
+
+   local OUT=""
+   while [[ -n "$1" ]]; do
+      case "$1" in
+         -a|--all)
+            echo "${SYSNAME} ${NODENAME} ${RELEASE} ${MACHINE}"
+            exit 0
+            ;;
+         -s|--kernel-name)    OUT="${OUT}${SYSNAME} " ;;
+         -n|--nodename)       OUT="${OUT}${NODENAME} " ;;
+         -r|--kernel-release) OUT="${OUT}${RELEASE} " ;;
+         -m|--machine)        OUT="${OUT}${MACHINE} " ;;
+         --help|-h)           helpmsg; exit 0 ;;
+         *)
+            echo "uname: invalid option -- '${1#-}'" >&2
+            exit 1
+            ;;
+      esac
+      shift
+   done
+   # trim trailing space
+   echo "${OUT% }"
+}
+
+helpmsg () {
+echo "Usage: uname [OPTION]...
+Print system information.
+
+  -a, --all            print all information
+  -s, --kernel-name    print the kernel name
+  -n, --nodename       print the network node hostname
+  -r, --kernel-release print the kernel release
+  -m, --machine        print the machine hardware name
+  -h, --help           display this help and exit
+"
+}
+
+main "$@"

@@ -1,0 +1,3 @@
+#!/bin/bash
+# bashnative/test - bash has test as a builtin!
+builtin test "$@"

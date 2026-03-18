@@ -1,0 +1,43 @@
+#!/bin/bash
+# bashnative/xxd - make a hexdump or do the reverse
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: xxd [FILE]"; exit 0; }
+
+   local OFFSET=0
+   local -a HEX
+   local ASCII=""
+
+   while IFS= read -r -N 1 CHAR; do
+      if (( OFFSET % 16 == 0 )); then
+         if (( OFFSET > 0 )); then
+            # print previous line
+            printf "%08x: %-40s %s\n" "$(( OFFSET - 16 ))" "${HEX[*]}" "$ASCII"
+            HEX=()
+            ASCII=""
+         fi
+      fi
+
+      printf -v HEXVAL '%02x' "'$CHAR"
+      HEX+=("$HEXVAL")
+
+      # printable ASCII range
+      printf -v ORD '%d' "'$CHAR"
+      if (( ORD >= 32 && ORD <= 126 )); then
+         ASCII="${ASCII}${CHAR}"
+      else
+         ASCII="${ASCII}."
+      fi
+
+      (( OFFSET++ ))
+   done < "${1:-/dev/stdin}"
+
+   # flush last line
+   if (( ${#HEX[@]} > 0 )); then
+      local LINESTART=$(( (OFFSET / 16) * 16 ))
+      (( OFFSET % 16 != 0 )) || LINESTART=$(( OFFSET - 16 ))
+      printf "%08x: %-40s %s\n" "$LINESTART" "${HEX[*]}" "$ASCII"
+   fi
+}
+
+main "$@"

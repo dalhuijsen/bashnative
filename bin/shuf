@@ -1,0 +1,34 @@
+#!/bin/bash
+# bashnative/shuf - generate random permutations
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: shuf [FILE]"
+      echo "Write a random permutation of the input lines."
+      exit 0
+   fi
+
+   # slurp lines
+   local -a BUF
+   while IFS= read -r LINE; do
+      BUF+=("$LINE")
+   done < "${1:-/dev/stdin}"
+
+   # Fisher-Yates shuffle using $RANDOM
+   local N=${#BUF[@]}
+   local I=$N
+   while (( I > 1 )); do
+      (( I-- ))
+      local J=$(( RANDOM % (I + 1) ))
+      # swap
+      local TMP="${BUF[$I]}"
+      BUF[$I]="${BUF[$J]}"
+      BUF[$J]="$TMP"
+   done
+
+   for LINE in "${BUF[@]}"; do
+      echo "$LINE"
+   done
+}
+
+main "$@"

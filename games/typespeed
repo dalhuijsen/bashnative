@@ -1,0 +1,91 @@
+#!/bin/bash
+# bashnative/typespeed - typing speed test
+# Uses bash builtin keywords as the word source — no external files needed!
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: typespeed"; echo "Type the words as they appear. Measures WPM."; exit 0; }
+
+   # harvest words from bash builtins, keywords, and our own tools
+   local -a WORDS
+
+   # bash keywords and builtins -- always available, zero dependencies
+   while read -r LINE; do
+      for W in $LINE; do
+         (( ${#W} >= 3 )) && WORDS+=("$W")
+      done
+   done <<< "$(compgen -k 2>/dev/null; compgen -b 2>/dev/null)"
+
+   # also grab tool names from /bin if available
+   if [[ -d /bin ]]; then
+      for F in /bin/*; do
+         [[ -x "$F" ]] && WORDS+=("${F##*/}")
+      done
+   fi
+
+   # common unix terms as a fallback/supplement
+   WORDS+=(
+      pipe fork exec wait signal socket buffer cache
+      kernel shell script daemon process thread mutex
+      stdin stdout stderr inode mount chroot namespace
+      grep find sort test read echo printf export alias
+      function variable array string integer pattern glob
+      redirect pipeline subshell builtin parameter expansion
+      terminal cursor escape sequence prompt readline
+      permission owner group symlink directory filesystem
+      network packet protocol header response request
+      container image volume bridge overlay router proxy
+   )
+
+   local TOTAL_WORDS=10
+   local CORRECT=0 WRONG=0
+
+   echo "=== TYPESPEED ==="
+   echo "Type each word and press Enter."
+   echo "Starting in 3..."
+   read -t 1 < <(:) 2>/dev/null; echo "2..."
+   read -t 1 < <(:) 2>/dev/null; echo "1..."
+   read -t 1 < <(:) 2>/dev/null; echo "GO!"
+   echo
+
+   local START=$SECONDS
+   local I=0
+
+   while (( I < TOTAL_WORDS )); do
+      local WORD="${WORDS[$(( RANDOM % ${#WORDS[@]} ))]}"
+      echo -ne "\e[1;33m  ${WORD}\e[0m  "
+      read -r TYPED
+
+      if [[ "$TYPED" == "$WORD" ]]; then
+         echo -e "\e[1;32m  ✓\e[0m"
+         (( CORRECT++ ))
+      else
+         echo -e "\e[1;31m  ✗ (was: ${WORD})\e[0m"
+         (( WRONG++ ))
+      fi
+      (( I++ ))
+   done
+
+   local ELAPSED=$(( SECONDS - START ))
+   (( ELAPSED == 0 )) && ELAPSED=1
+   local WPM=$(( CORRECT * 60 / ELAPSED ))
+
+   echo
+   echo "=== RESULTS ==="
+   echo "  Time:    ${ELAPSED}s"
+   echo "  Correct: ${CORRECT} / ${TOTAL_WORDS}"
+   echo "  Wrong:   ${WRONG}"
+   echo "  WPM:     ${WPM}"
+   echo
+
+   if (( WPM >= 60 )); then
+      echo "  Impressive!"
+   elif (( WPM >= 40 )); then
+      echo "  Not bad!"
+   elif (( WPM >= 20 )); then
+      echo "  Keep practicing!"
+   else
+      echo "  Maybe try hunt-and-peck?"
+   fi
+}
+
+main "$@"

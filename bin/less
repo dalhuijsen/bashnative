@@ -1,0 +1,119 @@
+#!/bin/bash
+# bashnative/less - opposite of more ;)
+# Pager with scrolling, search, and line numbers
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: less [FILE]"
+      echo "Keys: j/DOWN=down, k/UP=up, space/pgdn=page down,"
+      echo "      b/pgup=page up, g=top, G=bottom, /=search, q=quit"
+      exit 0
+   fi
+
+   # slurp file into array (BUF, not LINES -- $LINES is terminal rows!)
+   local -a BUF
+   while IFS= read -r LINE; do
+      BUF+=("$LINE")
+   done < "${1:-/dev/stdin}"
+
+   local TOTAL=${#BUF[@]}
+   local TOP=0
+   local ROWS="${LINES:-24}"
+   local COLS="${COLUMNS:-80}"
+   local EDITROWS=$(( ROWS - 1 ))
+   local SEARCHPAT=""
+
+   # terminal setup
+   stty -echo -icanon min 1 2>/dev/null
+   echo -ne '\e[?1049h'   # alternate screen
+
+   trap 'echo -ne "\e[?1049l"; stty echo icanon 2>/dev/null; exit' EXIT INT TERM
+
+   while true; do
+      shopt -s checkwinsize; (:)
+      ROWS="${LINES:-24}"
+      EDITROWS=$(( ROWS - 1 ))
+
+      # draw
+      echo -ne '\e[H'
+      local I=0
+      while (( I < EDITROWS )); do
+         local LINENUM=$(( TOP + I ))
+         echo -ne "\e[$(( I + 1 ));1H\e[K"
+         if (( LINENUM < TOTAL )); then
+            echo -n "${BUF[$LINENUM]}"
+         else
+            echo -n "~"
+         fi
+         (( I++ ))
+      done
+
+      # status line
+      echo -ne "\e[${ROWS};1H\e[7m"
+      local FNAME="${1:-(stdin)}"
+      local PCT=0
+      (( TOTAL > 0 )) && PCT=$(( (TOP + EDITROWS) * 100 / TOTAL ))
+      (( PCT > 100 )) && PCT=100
+      printf "%-${COLS}s" " ${FNAME} lines ${TOP}-$(( TOP + EDITROWS )) / ${TOTAL}  (${PCT}%)"
+      echo -ne '\e[0m'
+
+      # read key
+      local KEY
+      IFS= read -r -s -n 1 KEY
+
+      if [[ "$KEY" == $'\e' ]]; then
+         local SEQ
+         IFS= read -r -s -n 1 -t 0.05 SEQ
+         if [[ "$SEQ" == "[" ]]; then
+            IFS= read -r -s -n 1 -t 0.05 SEQ
+            case "$SEQ" in
+               A) KEY="k" ;;
+               B) KEY="j" ;;
+               5) IFS= read -r -s -n 1 -t 0.05; KEY="b" ;;
+               6) IFS= read -r -s -n 1 -t 0.05; KEY=" " ;;
+            esac
+         fi
+      fi
+
+      case "$KEY" in
+         q) break ;;
+         j) (( TOP < TOTAL - EDITROWS )) && (( TOP++ )) ;;
+         k) (( TOP > 0 )) && (( TOP-- )) ;;
+         " "|f) TOP=$(( TOP + EDITROWS )); (( TOP > TOTAL - EDITROWS )) && TOP=$(( TOTAL - EDITROWS )); (( TOP < 0 )) && TOP=0 ;;
+         b) TOP=$(( TOP - EDITROWS )); (( TOP < 0 )) && TOP=0 ;;
+         g) TOP=0 ;;
+         G) TOP=$(( TOTAL - EDITROWS )); (( TOP < 0 )) && TOP=0 ;;
+         /)
+            # search
+            echo -ne "\e[${ROWS};1H\e[K/"
+            stty echo 2>/dev/null
+            read -r SEARCHPAT
+            stty -echo 2>/dev/null
+            # find next match
+            local S=$(( TOP + 1 ))
+            while (( S < TOTAL )); do
+               if [[ "${BUF[$S]}" =~ $SEARCHPAT ]]; then
+                  TOP=$S
+                  break
+               fi
+               (( S++ ))
+            done
+            ;;
+         n)
+            # repeat search
+            if [[ -n "$SEARCHPAT" ]]; then
+               local S=$(( TOP + 1 ))
+               while (( S < TOTAL )); do
+                  if [[ "${BUF[$S]}" =~ $SEARCHPAT ]]; then
+                     TOP=$S
+                     break
+                  fi
+                  (( S++ ))
+               done
+            fi
+            ;;
+      esac
+   done
+}
+
+main "$@"

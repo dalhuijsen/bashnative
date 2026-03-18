@@ -1,0 +1,11 @@
+#!/bin/bash
+# bashnative/printf - bash has printf as a builtin!
+# just expose it for PATH usage
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: printf FORMAT [ARGUMENT]..."
+   echo "Format and print ARGUMENT(s) according to FORMAT."
+   exit 0
+fi
+
+builtin printf "$@"

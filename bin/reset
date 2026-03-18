@@ -1,0 +1,5 @@
+#!/bin/bash
+# bashnative/reset - reset terminal to sane defaults
+echo -ne '\ec'       # RIS - Reset to Initial State
+echo -ne '\e[?25h'   # show cursor
+echo -ne '\e[0m'     # reset colors

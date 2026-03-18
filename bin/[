@@ -1,0 +1,3 @@
+#!/bin/bash
+# bashnative/[ - bash has [ as a builtin!
+builtin test "$@"

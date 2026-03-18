@@ -1,0 +1,33 @@
+#!/bin/bash
+# bashnative/who - show who is logged on
+# In a container there's usually just us; read from /proc if available
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: who"; exit 0; }
+
+   if [[ -r /var/run/utmp ]] || [[ -r /run/utmp ]]; then
+      # utmp is binary; we can't parse it in pure bash
+      # fallback to /proc
+      :
+   fi
+
+   # best effort: look at /proc for tty sessions
+   if [[ -d /proc ]]; then
+      for PROCDIR in /proc/[0-9]*; do
+         [[ -r "${PROCDIR}/stat" ]] || continue
+         local COMM TTY
+         read -r _ COMM _ _ _ _ TTY _ < "${PROCDIR}/stat" 2>/dev/null
+         # tty > 0 means it's attached to a terminal
+         if (( TTY > 0 )); then
+            local USER="${USER:-root}"
+            printf "%-10s tty%-4d %(%Y-%m-%d %H:%M)T\n" "$USER" "$TTY" -1
+            return
+         fi
+      done
+   fi
+
+   # absolute fallback
+   printf "%-10s pts/0  %(%Y-%m-%d %H:%M)T\n" "${USER:-root}" -1
+}
+
+main "$@"

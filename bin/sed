@@ -1,0 +1,125 @@
+#!/bin/bash
+# bashnative/sed - stream editor (basic subset)
+# Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+#
+# Supports:
+#   s/PATTERN/REPLACEMENT/[g]   substitute
+#   /PATTERN/d                  delete matching lines
+#   /PATTERN/p                  print matching lines
+#   -n                          suppress automatic printing
+#   -e SCRIPT                   add script
+#   -i                          edit in-place
+
+NFLAG=0
+IFLAG=0
+SCRIPTS=()
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -n) NFLAG=1 ;;
+         -i) IFLAG=1 ;;
+         -e) shift; SCRIPTS+=("$1") ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   # first non-flag arg is the script if no -e was given
+   if (( ${#SCRIPTS[@]} == 0 )); then
+      SCRIPTS+=("$1")
+      shift
+   fi
+
+   if [[ -z "${SCRIPTS[0]}" ]]; then
+      echo "sed: no script given" >&2
+      exit 1
+   fi
+
+   if [[ -n "$1" ]]; then
+      for FILE in "$@"; do
+         if (( IFLAG )); then
+            local TMPFILE="${FILE}.sedtmp"
+            sed_stream < "$FILE" > "$TMPFILE"
+            cat "$TMPFILE" > "$FILE"
+            rm -f "$TMPFILE" 2>/dev/null
+         else
+            sed_stream < "$FILE"
+         fi
+      done
+   else
+      sed_stream
+   fi
+}
+
+sed_stream () {
+   while IFS= read -r LINE; do
+      local PRINT=1 PRINTED=0
+
+      for SCRIPT in "${SCRIPTS[@]}"; do
+         if [[ "${SCRIPT:0:1}" == "s" ]]; then
+            # s/pattern/replacement/[flags]  -- parse by delimiter char
+            local DELIM="${SCRIPT:1:1}"
+            local REST="${SCRIPT:2}"
+            local PAT="${REST%%${DELIM}*}"
+            REST="${REST#*${DELIM}}"
+            local REP="${REST%%${DELIM}*}"
+            REST="${REST#*${DELIM}}"
+            local FLAGS="$REST"
+
+            if [[ "$FLAGS" == *g* ]]; then
+               LINE="${LINE//$PAT/$REP}"
+            else
+               LINE="${LINE/$PAT/$REP}"
+            fi
+
+         elif [[ "${SCRIPT:0:1}" == "/" ]]; then
+            # /pattern/d or /pattern/p
+            local CMD="${SCRIPT: -1}"
+            local PAT="${SCRIPT:1}"
+            PAT="${PAT%/${CMD}}"
+
+            case "$CMD" in
+               d)
+                  if [[ "$LINE" =~ $PAT ]]; then
+                     PRINT=0
+                  fi
+                  ;;
+               p)
+                  if [[ "$LINE" =~ $PAT ]]; then
+                     echo "$LINE"
+                     PRINTED=1
+                  fi
+                  ;;
+            esac
+         fi
+      done
+
+      if (( PRINT )); then
+         if (( ! NFLAG )) || (( PRINTED )); then
+            (( PRINTED )) || echo "$LINE"
+         fi
+      fi
+   done
+}
+
+helpmsg () {
+echo "Usage: sed [OPTION]... SCRIPT [FILE]...
+Stream editor (basic subset).
+
+  -n             suppress automatic printing
+  -e SCRIPT      add script command
+  -i             edit files in place
+  -h             display this help
+
+Supported commands:
+  s/PAT/REP/     substitute first occurrence
+  s/PAT/REP/g    substitute all occurrences
+  /PAT/d         delete lines matching PAT
+  /PAT/p         print lines matching PAT
+"
+}
+
+main "$@"

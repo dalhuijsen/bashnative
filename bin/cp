@@ -1,0 +1,96 @@
+#!/bin/bash
+# bashnative/cp - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# For text files, we can do this in pure bash!
+# Binary files... not so much (not binary safe).
+
+RFLAG=
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -r|-R|--recursive) RFLAG=1 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "cp: missing operand" >&2
+      exit 1
+   fi
+
+   SRC="$1"
+   DST="$2"
+
+   if [[ -d "$SRC" ]] && [[ -z "$RFLAG" ]]; then
+      echo "cp: -r not specified; omitting directory '${SRC}'" >&2
+      exit 1
+   fi
+
+   if [[ -d "$SRC" ]]; then
+      cp_recursive "$SRC" "$DST"
+   else
+      cp_file "$SRC" "$DST"
+   fi
+}
+
+cp_file () {
+   local SRC="$1" DST="$2"
+
+   if [[ ! -r "$SRC" ]]; then
+      echo "cp: cannot stat '${SRC}': No such file or directory" >&2
+      return 1
+   fi
+
+   # if DST is a directory, put file inside it
+   if [[ -d "$DST" ]]; then
+      DST="${DST}/${SRC##*/}"
+   fi
+
+   # pure bash copy -- read char by char (THE ENGINE, and yes it's slow)
+   > "$DST"
+   while IFS= read -r -N 1 CHAR; do
+      printf '%s' "$CHAR" >> "$DST"
+   done < "$SRC"
+}
+
+cp_recursive () {
+   local SRC="$1" DST="$2"
+   local BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+
+   . "${BASHNATIVE}/function/fs" 2>/dev/null
+
+   # create destination directory
+   if [[ ! -d "$DST" ]]; then
+      fs mkdir "$DST"
+   fi
+
+   for ITEM in "$SRC"/*; do
+      [[ -e "$ITEM" ]] || continue
+      local NAME="${ITEM##*/}"
+      if [[ -d "$ITEM" ]]; then
+         cp_recursive "$ITEM" "${DST}/${NAME}"
+      else
+         cp_file "$ITEM" "${DST}/${NAME}"
+      fi
+   done
+}
+
+helpmsg () {
+echo "Usage: cp [OPTION]... SOURCE DEST
+Copy SOURCE to DEST.
+
+  -r, -R, --recursive  copy directories recursively
+  -h, --help            display this help and exit
+
+Warning: text files only (not binary safe).
+"
+}
+
+main "$@"

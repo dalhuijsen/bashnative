@@ -1,0 +1,37 @@
+#!/bin/bash
+# bashnative/xargs - build and execute command lines from standard input
+
+NFLAG=
+CMD=echo
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -n) shift; NFLAG="$1" ;;
+         --help|-h) echo "Usage: xargs [-n NUM] [COMMAND]"; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   [[ -n "$1" ]] && CMD="$*"
+
+   local -a ARGS
+   while read -r LINE; do
+      for WORD in $LINE; do
+         ARGS+=("$WORD")
+         if [[ -n "$NFLAG" ]] && (( ${#ARGS[@]} >= NFLAG )); then
+            $CMD "${ARGS[@]}"
+            ARGS=()
+         fi
+      done
+   done
+
+   # flush remaining
+   if (( ${#ARGS[@]} > 0 )); then
+      $CMD "${ARGS[@]}"
+   fi
+}
+
+main "$@"

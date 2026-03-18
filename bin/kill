@@ -1,0 +1,17 @@
+#!/bin/bash
+# bashnative/kill - bash has kill as a builtin!
+# just expose it for PATH usage
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: kill [-s SIGNAL | -SIGNAL] PID..."
+   echo "Send a signal to a process. Default signal is TERM."
+   echo "  -l   list signal names"
+   exit 0
+fi
+
+if [[ "$1" == "-l" ]]; then
+   builtin kill -l
+   exit
+fi
+
+builtin kill "$@"

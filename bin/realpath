@@ -1,0 +1,25 @@
+#!/bin/bash
+# bashnative/realpath - resolve absolute pathname
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: realpath FILE..."
+   echo "Print the resolved absolute path."
+   exit 0
+fi
+
+for FILE in "$@"; do
+   if [[ -d "$FILE" ]]; then
+      (cd "$FILE" && echo "$PWD")
+   elif [[ -e "$FILE" ]]; then
+      local DIR="${FILE%/*}"
+      local BASE="${FILE##*/}"
+      if [[ "$DIR" == "$FILE" ]]; then
+         echo "${PWD}/${BASE}"
+      else
+         (cd "$DIR" 2>/dev/null && echo "${PWD}/${BASE}")
+      fi
+   else
+      echo "realpath: $FILE: No such file or directory" >&2
+      exit 1
+   fi
+done

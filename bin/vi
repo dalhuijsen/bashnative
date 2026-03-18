@@ -1,0 +1,630 @@
+#!/bin/bash
+# bashnative/vi - a vi-like editor written in pure bash
+# Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+#
+# Wrap is always on (lines wrap at terminal width).
+# This keeps the rendering engine sane.
+
+# ---- state ----
+FILENAME="${1:-}"
+MODIFIED=0
+MODE="normal"       # normal, insert, command
+CMDLINE=""           # for : commands and / search
+STATUSMSG=""         # one-shot status message
+TOPLINE=0            # first visible line
+CURLINE=0            # cursor line in file
+CURCOL=0             # cursor column in file
+NUMBERFLAG=0         # :set number
+SEARCHPAT=""         # last search pattern
+YANKBUF=""           # yank buffer
+
+# file stored as array of lines
+declare -a BUF
+
+# ---- terminal setup ----
+
+term_init () {
+   # save terminal state and switch to raw mode
+   SAVED_STTY="$(stty -g 2>/dev/null)"
+   stty -echo -icanon min 1 2>/dev/null
+   # alternate screen buffer
+   echo -ne '\e[?1049h'
+   # hide cursor during draws
+   echo -ne '\e[?25l'
+}
+
+term_restore () {
+   # show cursor, exit alternate screen, restore terminal
+   echo -ne '\e[?25h'
+   echo -ne '\e[?1049l'
+   [[ -n "$SAVED_STTY" ]] && stty "$SAVED_STTY" 2>/dev/null
+}
+
+term_size () {
+   # bash tracks LINES and COLUMNS when checkwinsize is set
+   shopt -s checkwinsize
+   # force update by running a subcommand
+   (:)
+   ROWS="${LINES:-24}"
+   COLS="${COLUMNS:-80}"
+   EDITROWS=$(( ROWS - 1 ))   # last row is status/command line
+}
+
+# ---- drawing ----
+
+draw_screen () {
+   echo -ne '\e[?25l'   # hide cursor
+   echo -ne '\e[H'      # home
+
+   local ROW=0
+   local LINE=$TOPLINE
+
+   while (( ROW < EDITROWS )); do
+      echo -ne "\e[$(( ROW + 1 ));1H\e[K"   # position + clear line
+      if (( LINE < ${#BUF[@]} )); then
+         local PREFIX=""
+         if (( NUMBERFLAG )); then
+            printf -v PREFIX "%4d " "$(( LINE + 1 ))"
+         fi
+         echo -n "${PREFIX}${BUF[$LINE]}"
+         # calculate how many screen rows this line takes
+         local LINELEN=$(( ${#PREFIX} + ${#BUF[$LINE]} ))
+         local WRAPROWS=$(( LINELEN / COLS ))
+         ROW=$(( ROW + WRAPROWS + 1 ))
+      else
+         echo -n "~"
+         (( ROW++ ))
+      fi
+      (( LINE++ ))
+   done
+
+   draw_status
+   draw_cursor
+   echo -ne '\e[?25h'   # show cursor
+}
+
+draw_status () {
+   echo -ne "\e[${ROWS};1H"    # last row
+   echo -ne '\e[7m'             # inverse video
+
+   if [[ "$MODE" == "command" ]]; then
+      printf "%-${COLS}s" ":${CMDLINE}"
+   elif [[ -n "$STATUSMSG" ]]; then
+      printf "%-${COLS}s" "$STATUSMSG"
+      STATUSMSG=""
+   else
+      local MODESTR=""
+      [[ "$MODE" == "insert" ]] && MODESTR="-- INSERT -- "
+      local FINFO="${FILENAME:-[No Name]}"
+      (( MODIFIED )) && FINFO="${FINFO} [+]"
+      local POS="$(( CURLINE + 1 )),$(( CURCOL + 1 ))"
+      local RIGHT="$(( CURLINE + 1 ))/${#BUF[@]}"
+      local LEFT="${MODESTR}${FINFO}"
+      local GAP=$(( COLS - ${#LEFT} - ${#POS} - ${#RIGHT} - 4 ))
+      (( GAP < 1 )) && GAP=1
+      printf "%s%*s %s   %s" "$LEFT" "$GAP" "" "$POS" "$RIGHT"
+   fi
+
+   echo -ne '\e[0m'   # reset
+}
+
+draw_cursor () {
+   # calculate screen row for cursor
+   local SCREENROW=1
+   local I=$TOPLINE
+   while (( I < CURLINE )); do
+      local LEN=${#BUF[$I]}
+      (( NUMBERFLAG )) && LEN=$(( LEN + 5 ))
+      SCREENROW=$(( SCREENROW + LEN / COLS + 1 ))
+      (( I++ ))
+   done
+
+   local COL=$(( CURCOL + 1 ))
+   (( NUMBERFLAG )) && COL=$(( COL + 5 ))
+
+   echo -ne "\e[${SCREENROW};${COL}H"
+}
+
+# ---- scrolling ----
+
+ensure_visible () {
+   # scroll so CURLINE is visible
+   if (( CURLINE < TOPLINE )); then
+      TOPLINE=$CURLINE
+   fi
+
+   # count visible lines from TOPLINE
+   local ROW=0 LINE=$TOPLINE
+   while (( ROW < EDITROWS && LINE < ${#BUF[@]} )); do
+      local LEN=${#BUF[$LINE]}
+      (( NUMBERFLAG )) && LEN=$(( LEN + 5 ))
+      ROW=$(( ROW + LEN / COLS + 1 ))
+      if (( LINE == CURLINE && ROW <= EDITROWS )); then
+         return   # cursor is visible
+      fi
+      (( LINE++ ))
+   done
+
+   # cursor not visible, scroll down
+   TOPLINE=$(( TOPLINE + 1 ))
+   ensure_visible
+}
+
+clamp_col () {
+   local MAXCOL=${#BUF[$CURLINE]}
+   if [[ "$MODE" == "normal" ]]; then
+      (( MAXCOL > 0 )) && MAXCOL=$(( MAXCOL - 1 ))
+   fi
+   (( MAXCOL < 0 )) && MAXCOL=0
+   (( CURCOL > MAXCOL )) && CURCOL=$MAXCOL
+}
+
+# ---- file I/O ----
+
+load_file () {
+   BUF=()
+   if [[ -n "$FILENAME" ]] && [[ -r "$FILENAME" ]]; then
+      while IFS= read -r LINE; do
+         BUF+=("$LINE")
+      done < "$FILENAME"
+      STATUSMSG="\"${FILENAME}\" ${#BUF[@]} lines"
+   else
+      BUF=("")
+      if [[ -n "$FILENAME" ]]; then
+         STATUSMSG="\"${FILENAME}\" [New File]"
+      else
+         STATUSMSG="[No Name]"
+      fi
+   fi
+   (( ${#BUF[@]} == 0 )) && BUF=("")
+}
+
+save_file () {
+   if [[ -z "$FILENAME" ]]; then
+      STATUSMSG="E32: No file name"
+      return 1
+   fi
+   {
+      local I=0
+      while (( I < ${#BUF[@]} )); do
+         echo "${BUF[$I]}"
+         (( I++ ))
+      done
+   } > "$FILENAME"
+   MODIFIED=0
+   STATUSMSG="\"${FILENAME}\" ${#BUF[@]} lines written"
+}
+
+# ---- key reading ----
+
+read_key () {
+   local KEY
+   IFS= read -r -s -n 1 KEY
+
+   # escape sequence?
+   if [[ "$KEY" == $'\e' ]]; then
+      local SEQ
+      IFS= read -r -s -n 1 -t 0.05 SEQ
+      if [[ "$SEQ" == "[" ]]; then
+         IFS= read -r -s -n 1 -t 0.05 SEQ
+         case "$SEQ" in
+            A) KEY="UP" ;;
+            B) KEY="DOWN" ;;
+            C) KEY="RIGHT" ;;
+            D) KEY="LEFT" ;;
+            H) KEY="HOME" ;;
+            F) KEY="END" ;;
+            3) IFS= read -r -s -n 1 -t 0.05; KEY="DELETE" ;;
+            *) KEY="ESC" ;;
+         esac
+      else
+         KEY="ESC"
+      fi
+   elif [[ "$KEY" == "" ]]; then
+      # ctrl-key or empty
+      KEY="ENTER"
+   elif [[ "$KEY" == $'\x7f' ]] || [[ "$KEY" == $'\b' ]]; then
+      KEY="BACKSPACE"
+   elif [[ "$KEY" == $'\t' ]]; then
+      KEY="TAB"
+   fi
+
+   REPLY="$KEY"
+}
+
+# ---- normal mode ----
+
+handle_normal () {
+   local KEY="$1"
+
+   case "$KEY" in
+      # movement
+      h|LEFT)
+         (( CURCOL > 0 )) && (( CURCOL-- ))
+         ;;
+      j|DOWN)
+         if (( CURLINE < ${#BUF[@]} - 1 )); then
+            (( CURLINE++ ))
+            clamp_col
+            ensure_visible
+         fi
+         ;;
+      k|UP)
+         if (( CURLINE > 0 )); then
+            (( CURLINE-- ))
+            clamp_col
+            ensure_visible
+         fi
+         ;;
+      l|RIGHT)
+         if (( CURCOL < ${#BUF[$CURLINE]} - 1 )); then
+            (( CURCOL++ ))
+         fi
+         ;;
+      0|HOME)
+         CURCOL=0
+         ;;
+      '$'|END)
+         CURCOL=${#BUF[$CURLINE]}
+         (( CURCOL > 0 )) && (( CURCOL-- ))
+         ;;
+      w)
+         # next word
+         local LINE="${BUF[$CURLINE]}"
+         local REST="${LINE:$((CURCOL+1))}"
+         if [[ "$REST" =~ ^[^[:space:]]*[[:space:]]+(.*)$ ]]; then
+            CURCOL=$(( ${#LINE} - ${#BASH_REMATCH[1]} ))
+         elif (( CURLINE < ${#BUF[@]} - 1 )); then
+            (( CURLINE++ ))
+            CURCOL=0
+            ensure_visible
+         fi
+         ;;
+      b)
+         # previous word
+         if (( CURCOL == 0 )); then
+            if (( CURLINE > 0 )); then
+               (( CURLINE-- ))
+               CURCOL=${#BUF[$CURLINE]}
+               (( CURCOL > 0 )) && (( CURCOL-- ))
+               ensure_visible
+            fi
+         else
+            local LINE="${BUF[$CURLINE]}"
+            local BEFORE="${LINE:0:$CURCOL}"
+            # strip trailing spaces, then find last space
+            BEFORE="${BEFORE%%[[:space:]]}"
+            CURCOL="${#BEFORE}"
+            while (( CURCOL > 0 )) && [[ "${LINE:$((CURCOL-1)):1}" != " " ]]; do
+               (( CURCOL-- ))
+            done
+         fi
+         ;;
+      g)
+         # gg = go to top
+         IFS= read -r -s -n 1 -t 0.5 NEXT
+         if [[ "$NEXT" == "g" ]]; then
+            CURLINE=0; CURCOL=0; TOPLINE=0
+         fi
+         ;;
+      G)
+         CURLINE=$(( ${#BUF[@]} - 1 ))
+         CURCOL=0
+         ensure_visible
+         ;;
+
+      # editing
+      x|DELETE)
+         local LINE="${BUF[$CURLINE]}"
+         if (( ${#LINE} > 0 )); then
+            BUF[$CURLINE]="${LINE:0:$CURCOL}${LINE:$((CURCOL+1))}"
+            MODIFIED=1
+            clamp_col
+         fi
+         ;;
+      d)
+         IFS= read -r -s -n 1 -t 0.5 NEXT
+         if [[ "$NEXT" == "d" ]]; then
+            # dd = delete line
+            YANKBUF="${BUF[$CURLINE]}"
+            unset 'BUF[CURLINE]'
+            BUF=("${BUF[@]}")
+            (( ${#BUF[@]} == 0 )) && BUF=("")
+            (( CURLINE >= ${#BUF[@]} )) && CURLINE=$(( ${#BUF[@]} - 1 ))
+            MODIFIED=1
+            clamp_col
+         fi
+         ;;
+      y)
+         IFS= read -r -s -n 1 -t 0.5 NEXT
+         if [[ "$NEXT" == "y" ]]; then
+            YANKBUF="${BUF[$CURLINE]}"
+            STATUSMSG="1 line yanked"
+         fi
+         ;;
+      p)
+         # paste below
+         if [[ -n "$YANKBUF" ]]; then
+            local BEFORE=("${BUF[@]:0:$((CURLINE+1))}")
+            local AFTER=("${BUF[@]:$((CURLINE+1))}")
+            BUF=("${BEFORE[@]}" "$YANKBUF" "${AFTER[@]}")
+            (( CURLINE++ ))
+            MODIFIED=1
+         fi
+         ;;
+      P)
+         # paste above
+         if [[ -n "$YANKBUF" ]]; then
+            local BEFORE=("${BUF[@]:0:$CURLINE}")
+            local AFTER=("${BUF[@]:$CURLINE}")
+            BUF=("${BEFORE[@]}" "$YANKBUF" "${AFTER[@]}")
+            MODIFIED=1
+         fi
+         ;;
+
+      # enter insert mode
+      i)
+         MODE="insert"
+         ;;
+      a)
+         MODE="insert"
+         (( CURCOL < ${#BUF[$CURLINE]} )) && (( CURCOL++ ))
+         ;;
+      o)
+         local BEFORE=("${BUF[@]:0:$((CURLINE+1))}")
+         local AFTER=("${BUF[@]:$((CURLINE+1))}")
+         BUF=("${BEFORE[@]}" "" "${AFTER[@]}")
+         (( CURLINE++ ))
+         CURCOL=0
+         MODE="insert"
+         MODIFIED=1
+         ;;
+      O)
+         local BEFORE=("${BUF[@]:0:$CURLINE}")
+         local AFTER=("${BUF[@]:$CURLINE}")
+         BUF=("${BEFORE[@]}" "" "${AFTER[@]}")
+         CURCOL=0
+         MODE="insert"
+         MODIFIED=1
+         ;;
+      A)
+         CURCOL=${#BUF[$CURLINE]}
+         MODE="insert"
+         ;;
+
+      # command mode
+      :)
+         MODE="command"
+         CMDLINE=""
+         ;;
+
+      # search
+      /)
+         MODE="command"
+         CMDLINE=""
+         STATUSMSG="/"
+         ;;
+
+      n)
+         # repeat search
+         if [[ -n "$SEARCHPAT" ]]; then
+            search_forward "$SEARCHPAT"
+         fi
+         ;;
+   esac
+}
+
+# ---- insert mode ----
+
+handle_insert () {
+   local KEY="$1"
+
+   case "$KEY" in
+      ESC)
+         MODE="normal"
+         (( CURCOL > 0 )) && (( CURCOL-- ))
+         ;;
+      ENTER)
+         # split line at cursor
+         local LINE="${BUF[$CURLINE]}"
+         local LEFT="${LINE:0:$CURCOL}"
+         local RIGHT="${LINE:$CURCOL}"
+         BUF[$CURLINE]="$LEFT"
+         local BEFORE=("${BUF[@]:0:$((CURLINE+1))}")
+         local AFTER=("${BUF[@]:$((CURLINE+1))}")
+         BUF=("${BEFORE[@]}" "$RIGHT" "${AFTER[@]}")
+         (( CURLINE++ ))
+         CURCOL=0
+         MODIFIED=1
+         ensure_visible
+         ;;
+      BACKSPACE)
+         if (( CURCOL > 0 )); then
+            local LINE="${BUF[$CURLINE]}"
+            BUF[$CURLINE]="${LINE:0:$((CURCOL-1))}${LINE:$CURCOL}"
+            (( CURCOL-- ))
+            MODIFIED=1
+         elif (( CURLINE > 0 )); then
+            # join with previous line
+            local PREVLEN=${#BUF[$((CURLINE-1))]}
+            BUF[$((CURLINE-1))]="${BUF[$((CURLINE-1))]}${BUF[$CURLINE]}"
+            unset 'BUF[CURLINE]'
+            BUF=("${BUF[@]}")
+            (( CURLINE-- ))
+            CURCOL=$PREVLEN
+            MODIFIED=1
+            ensure_visible
+         fi
+         ;;
+      DELETE)
+         local LINE="${BUF[$CURLINE]}"
+         if (( CURCOL < ${#LINE} )); then
+            BUF[$CURLINE]="${LINE:0:$CURCOL}${LINE:$((CURCOL+1))}"
+            MODIFIED=1
+         fi
+         ;;
+      TAB)
+         local LINE="${BUF[$CURLINE]}"
+         BUF[$CURLINE]="${LINE:0:$CURCOL}    ${LINE:$CURCOL}"
+         CURCOL=$(( CURCOL + 4 ))
+         MODIFIED=1
+         ;;
+      UP)    handle_normal "k" ;;
+      DOWN)  handle_normal "j" ;;
+      LEFT)  handle_normal "h" ;;
+      RIGHT) handle_normal "l" ;;
+      *)
+         # insert character
+         if [[ ${#KEY} -eq 1 ]]; then
+            local LINE="${BUF[$CURLINE]}"
+            BUF[$CURLINE]="${LINE:0:$CURCOL}${KEY}${LINE:$CURCOL}"
+            (( CURCOL++ ))
+            MODIFIED=1
+         fi
+         ;;
+   esac
+}
+
+# ---- command mode ----
+
+handle_command () {
+   local KEY="$1"
+
+   case "$KEY" in
+      ESC)
+         MODE="normal"
+         CMDLINE=""
+         ;;
+      ENTER)
+         MODE="normal"
+         exec_command "$CMDLINE"
+         CMDLINE=""
+         ;;
+      BACKSPACE)
+         if [[ -n "$CMDLINE" ]]; then
+            CMDLINE="${CMDLINE:0:$((${#CMDLINE}-1))}"
+         else
+            MODE="normal"
+         fi
+         ;;
+      *)
+         if [[ ${#KEY} -eq 1 ]]; then
+            CMDLINE="${CMDLINE}${KEY}"
+         fi
+         ;;
+   esac
+}
+
+exec_command () {
+   local CMD="$1"
+
+   case "$CMD" in
+      q)
+         if (( MODIFIED )); then
+            STATUSMSG="E37: No write since last change (add ! to override)"
+         else
+            term_restore
+            exit 0
+         fi
+         ;;
+      q!)
+         term_restore
+         exit 0
+         ;;
+      w)
+         save_file
+         ;;
+      wq|x)
+         save_file
+         term_restore
+         exit 0
+         ;;
+      "w "*)
+         FILENAME="${CMD#w }"
+         save_file
+         ;;
+      "set number")
+         NUMBERFLAG=1
+         ;;
+      "set nonumber"|"set nonu")
+         NUMBERFLAG=0
+         ;;
+      [0-9]*)
+         # :N = goto line N
+         local N="${CMD%%[!0-9]*}"
+         CURLINE=$(( N - 1 ))
+         (( CURLINE < 0 )) && CURLINE=0
+         (( CURLINE >= ${#BUF[@]} )) && CURLINE=$(( ${#BUF[@]} - 1 ))
+         CURCOL=0
+         ensure_visible
+         ;;
+      /*)
+         # search
+         SEARCHPAT="${CMD:1}"
+         search_forward "$SEARCHPAT"
+         ;;
+      *)
+         # if STATUSMSG was "/" this was a search from / key
+         if [[ -n "$CMD" ]]; then
+            search_forward "$CMD"
+         fi
+         ;;
+   esac
+}
+
+search_forward () {
+   local PAT="$1"
+   local I=$(( CURLINE + 1 ))
+
+   while (( I != CURLINE )); do
+      (( I >= ${#BUF[@]} )) && I=0
+      (( I == CURLINE )) && break
+      if [[ "${BUF[$I]}" =~ $PAT ]]; then
+         CURLINE=$I
+         CURCOL=0
+         ensure_visible
+         SEARCHPAT="$PAT"
+         return
+      fi
+      (( I++ ))
+   done
+   STATUSMSG="Pattern not found: ${PAT}"
+}
+
+# ---- main loop ----
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: vi [FILE]"
+      echo "A vi-like editor written in pure bash."
+      echo "Wrap is always on. Supports: hjkl, iaoO, dd, yy, p, /search, :commands"
+      exit 0
+   fi
+
+   trap 'term_restore; exit' EXIT INT TERM
+
+   FILENAME="${1:-}"
+   load_file
+   term_init
+   term_size
+
+   while true; do
+      draw_screen
+      read_key
+      local KEY="$REPLY"
+
+      # handle window resize
+      term_size
+
+      case "$MODE" in
+         normal)  handle_normal "$KEY" ;;
+         insert)  handle_insert "$KEY" ;;
+         command) handle_command "$KEY" ;;
+      esac
+   done
+}
+
+main "$@"

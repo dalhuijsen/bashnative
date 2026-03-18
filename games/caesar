@@ -1,0 +1,44 @@
+#!/bin/bash
+# bashnative/caesar - decrypt caesar cipher by trying all 26 rotations
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: caesar [SHIFT] < text"; echo "Without SHIFT, tries all 26 rotations."; exit 0; }
+
+   local TEXT=""
+   while IFS= read -r LINE; do
+      TEXT="${TEXT}${LINE}"$'\n'
+   done
+
+   if [[ -n "$1" ]]; then
+      rotate "$TEXT" "$1"
+   else
+      local I=0
+      while (( I < 26 )); do
+         printf "%2d: " "$I"
+         rotate "$TEXT" "$I"
+         (( I++ ))
+      done
+   fi
+}
+
+rotate () {
+   local TEXT="$1" SHIFT="$2"
+   local I=0 OUT=""
+   while (( I < ${#TEXT} )); do
+      local CH="${TEXT:$I:1}"
+      printf -v ORD '%d' "'$CH"
+      if (( ORD >= 65 && ORD <= 90 )); then
+         printf -v CH '\\x%02x' "$(( (ORD - 65 + SHIFT) % 26 + 65 ))"
+         OUT="${OUT}$(echo -ne "$CH")"
+      elif (( ORD >= 97 && ORD <= 122 )); then
+         printf -v CH '\\x%02x' "$(( (ORD - 97 + SHIFT) % 26 + 97 ))"
+         OUT="${OUT}$(echo -ne "$CH")"
+      else
+         OUT="${OUT}${TEXT:$I:1}"
+      fi
+      (( I++ ))
+   done
+   echo -n "$OUT"
+}
+
+main "$@"
