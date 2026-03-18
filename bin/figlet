@@ -63,9 +63,9 @@ render () {
          continue
       fi
       if [[ -z "$HAVE_CHAR" ]]; then
+         # skip blank separator lines between glyphs
+         [[ -z "$LINE" ]] && continue
          CHAR="$LINE"
-         # empty line = space character
-         [[ -z "$CHAR" ]] && CHAR=" "
          LINENUM=0
          HAVE_CHAR=1
       else
@@ -77,18 +77,38 @@ render () {
       fi
    done < "$FONTFILE"
 
-   # render text line by line
+   # space character: set all rows to empty (width handled by padding)
+   local R=0
+   while (( R < HEIGHT )); do
+      GLYPHS[" :${R}"]="  "
+      (( R++ ))
+   done
+
+   # find max width per character for proper spacing
+   local -A WIDTHS
+   local I=0
+   while (( I < ${#TEXT} )); do
+      local CH="${TEXT:$I:1}"
+      local MAXW=0 R=0
+      while (( R < HEIGHT )); do
+         local W="${#GLYPHS[${CH}:${R}]}"
+         (( W > MAXW )) && MAXW=$W
+         (( R++ ))
+      done
+      WIDTHS["$CH"]=$MAXW
+      (( I++ ))
+   done
+
+   # render text line by line, padding each glyph to its max width
    local ROW=0
    while (( ROW < HEIGHT )); do
       local I=0
       while (( I < ${#TEXT} )); do
          local CH="${TEXT:$I:1}"
          local KEY="${CH}:${ROW}"
-         if [[ -n "${GLYPHS[$KEY]+x}" ]]; then
-            printf '%s' "${GLYPHS[$KEY]}"
-         else
-            printf '%s' "     "
-         fi
+         local GLYPH="${GLYPHS[$KEY]:-}"
+         local W="${WIDTHS[$CH]:-5}"
+         printf "%-${W}s" "$GLYPH"
          (( I++ ))
       done
       echo
