@@ -15,8 +15,8 @@ main () {
    local SECS="$1"
    SECS="${SECS%s}"   # strip trailing 's'
 
-   # read -t with a closed fd — returns 1 after timeout, which is success for us
-   read -t "$SECS" -u 3 3</dev/null 2>/dev/null || true
+   # read -t on a pipe that will never produce data
+   read -t "$SECS" < <(:) 2>/dev/null || true
 }
 
 main "$@"
