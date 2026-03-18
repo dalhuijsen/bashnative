@@ -1,0 +1,40 @@
+#!/bin/bash
+# bashnative/killall - kill processes by name
+# Walks /proc (Linux only)
+
+SIG="TERM"
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -s) shift; SIG="$1" ;;
+         -[0-9]*) SIG="${1#-}" ;;
+         --help|-h) echo "Usage: killall [-SIGNAL] NAME..."; exit 0 ;;
+         --) shift; break ;;
+         *) SIG="${1#-}"; ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      echo "killall: missing process name" >&2
+      exit 1
+   fi
+
+   local RET=1
+   for NAME in "$@"; do
+      for PROCDIR in /proc/[0-9]*; do
+         [[ -r "${PROCDIR}/comm" ]] || continue
+         local COMM="$(< "${PROCDIR}/comm")"
+         local PID="${PROCDIR##*/}"
+         (( PID == $$ )) && continue
+         if [[ "$COMM" == "$NAME" ]]; then
+            builtin kill -"$SIG" "$PID" 2>/dev/null && RET=0
+         fi
+      done
+   done
+
+   exit $RET
+}
+
+main "$@"

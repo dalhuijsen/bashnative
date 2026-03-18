@@ -6,30 +6,31 @@
                                  Copyright(C)2011-2013 GPL
 
 
-Project completion: ~ 65%
-Latest milestone: fs builtin (9 syscalls), vi editor, 130+ tools
+Project completion: ~ 75%
+Latest milestone: fs builtin (9 syscalls), vi editor, 140+ tools
 Top priority: test coverage and edge cases
 
 Project goal status:
 
-  BusyBox replacement: 55%;
   CoreUtils replacement: 87% (90/103);
+  BusyBox replacement:   85% (121/142 userland tools);
 
 
 
 Bashnative currently provides:
 
-  [ arch base32 base64 basename bc cal cat chgrp chmod chown cksum
-  clear cmp comm cp csplit curl cut date dc df diff dir dircolors
-  dirname du echo editor env expand expr factor false find fmt fold
-  free grep groups head hexdump hostid hostname id install join kill
-  link ln logname ls man md5sum mkdir mkfifo mknod mktemp more mv nc
-  nl nohup nproc nslookup numfmt od paste pathchk pgrep pidof pinky
-  pkill pr printenv printf ps pwd readlink realpath reset rev rm rmdir
-  sed seq sha1sum sha256sum sha512sum shuf sleep sort split stat
-  strings sum sync tac tail tee telnet test time timeout touch tr tree
-  true truncate tsort tty uname unexpand uniq unlink uptime usleep
-  users vdir vi vim watch wc wget whois whereis which whoami xargs
+  [ arch ash base32 base64 basename bc cal cat chgrp chmod chown
+  cksum clear cmp comm cp csplit curl cut date dc df diff dir
+  dircolors dirname du echo ed editor env expand expr factor false
+  find fmt fold free fuser grep groups head hexdump hostid hostname
+  id install join kill killall less link ln logname ls lsof man
+  md5sum mkdir mkfifo mknod mktemp more mv nc netstat nl nohup nproc
+  nslookup numfmt od paste pathchk pgrep pidof ping pinky pkill pr
+  printenv printf ps pwd readlink realpath reset rev rm rmdir sed seq
+  sha1sum sha256sum sha512sum shuf sleep sort split stat strings sum
+  sync tac tail tee telnet test time timeout top touch tr tree true
+  truncate tsort tty uname unexpand uniq unlink uptime users usleep
+  vdir vi vim watch wc wget whereis which who whoami whois xargs xxd
   yes [1]
 
 
@@ -100,10 +101,28 @@ Design constraints:
 
 Not in scope (by design):
 
-  Binary I/O:     dd, tar, gzip, bzip2, xz, zip, shred
-  SELinux:        chcon, runcon
-  Process ctrl:   nice, renice, stdbuf (need syscalls we don't have)
-  Kernel/HW:      mount, insmod, modprobe, mknod for real devices
+  Binary I/O and compression:
+    dd, tar, gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unzip, cpio,
+    shred.  These operate on binary formats and/or implement
+    compression algorithms that require byte-level I/O.  Bash's
+    read/echo/printf operate on text strings, not raw byte streams.
+
+  SELinux:
+    chcon, runcon.  Security context operations need libselinux.
+
+  Process control:
+    nice, renice, stdbuf.  Need nice(2)/setpriority(2)/LD_PRELOAD
+    syscalls that bash cannot make.
+
+  Kernel/hardware:
+    mount, umount, insmod, modprobe, ifconfig (write), mknod for
+    real devices.  These need root and kernel-level syscalls.
+
+  Complex text processing:
+    awk, patch.  These are effectively programming languages in
+    their own right.  Implementing them in bash would be a project
+    bigger than bashnative itself.  (sed is implemented with basic
+    s///g and /pattern/d support.)
 
 
 

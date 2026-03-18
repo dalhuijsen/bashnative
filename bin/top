@@ -1,0 +1,85 @@
+#!/bin/bash
+# bashnative/top - display processes, refreshing periodically
+# Reads /proc (Linux only)
+
+INTERVAL=3
+NLINES=20
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: top [-d INTERVAL] [-n LINES]"
+      echo "Press q to quit."
+      exit 0
+   fi
+
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -d) shift; INTERVAL="$1" ;;
+         -n) shift; NLINES="$1" ;;
+      esac
+      shift
+   done
+
+   # raw mode for key detection
+   stty -echo -icanon min 0 time 0 2>/dev/null
+
+   trap 'stty echo icanon 2>/dev/null; exit' EXIT INT TERM
+
+   while true; do
+      echo -ne '\e[H\e[J'   # clear screen
+
+      # uptime line
+      if [[ -r /proc/uptime ]]; then
+         local UP="$(< /proc/uptime)"
+         UP="${UP%%.*}"
+         local DAYS=$(( UP / 86400 )) HRS=$(( (UP % 86400) / 3600 )) MINS=$(( (UP % 3600) / 60 ))
+         printf "top - %(%H:%M:%S)T up %d days, %02d:%02d\n" -1 "$DAYS" "$HRS" "$MINS"
+      fi
+
+      # memory
+      if [[ -r /proc/meminfo ]]; then
+         local TOTAL FREE
+         while IFS=: read -r KEY VAL; do
+            VAL="${VAL##*[[:space:]]}"
+            VAL="${VAL%% *}"
+            case "${KEY%%[[:space:]]*}" in
+               MemTotal) TOTAL="$VAL" ;;
+               MemFree)  FREE="$VAL" ;;
+            esac
+         done < /proc/meminfo
+         printf "Mem: %d total, %d free, %d used\n" "$TOTAL" "$FREE" "$(( TOTAL - FREE ))"
+      fi
+
+      echo ""
+      printf "%5s %-8s %s\n" "PID" "STATE" "COMMAND"
+
+      local COUNT=0
+      for PROCDIR in /proc/[0-9]*; do
+         (( COUNT >= NLINES )) && break
+         [[ -r "${PROCDIR}/stat" ]] || continue
+
+         local PID="${PROCDIR##*/}"
+         local COMM="" STATE=""
+
+         # read from stat: pid (comm) state ...
+         local STATLINE
+         read -r STATLINE < "${PROCDIR}/stat" 2>/dev/null || continue
+         COMM="${STATLINE#*(}"
+         COMM="${COMM%%)*}"
+         local REST="${STATLINE#*) }"
+         STATE="${REST%% *}"
+
+         printf "%5s %-8s %s\n" "$PID" "$STATE" "$COMM"
+         (( COUNT++ ))
+      done
+
+      # check for quit key
+      local KEY
+      read -r -n 1 KEY 2>/dev/null
+      [[ "$KEY" == "q" ]] && break
+
+      read -t "$INTERVAL" < <(:) 2>/dev/null || true
+   done
+}
+
+main "$@"

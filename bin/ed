@@ -1,0 +1,159 @@
+#!/bin/bash
+# bashnative/ed - line editor
+# The standard editor.  Bill Joy wrote vi because ed was too hard.
+
+FILENAME="${1:-}"
+MODIFIED=0
+CURLINE=0
+declare -a BUF
+PROMPT=""
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: ed [FILE]"; exit 0; }
+
+   if [[ -n "$FILENAME" ]] && [[ -r "$FILENAME" ]]; then
+      while IFS= read -r LINE; do
+         BUF+=("$LINE")
+      done < "$FILENAME"
+      CURLINE=${#BUF[@]}
+      echo "${#BUF[@]}"
+   fi
+
+   while true; do
+      [[ -n "$PROMPT" ]] && echo -n "$PROMPT"
+      IFS= read -r CMD || break
+
+      case "$CMD" in
+         # print
+         [0-9]*p|[0-9]*)
+            local N="${CMD%%[!0-9]*}"
+            if (( N >= 1 && N <= ${#BUF[@]} )); then
+               CURLINE=$N
+               echo "${BUF[$((CURLINE-1))]}"
+            else
+               echo "?"
+            fi
+            ;;
+         # print current
+         p|.)
+            if (( ${#BUF[@]} > 0 )); then
+               echo "${BUF[$((CURLINE-1))]}"
+            else
+               echo "?"
+            fi
+            ;;
+         # append after current line
+         a)
+            local -a NEWLINES
+            while IFS= read -r LINE; do
+               [[ "$LINE" == "." ]] && break
+               NEWLINES+=("$LINE")
+            done
+            local BEFORE=("${BUF[@]:0:$CURLINE}")
+            local AFTER=("${BUF[@]:$CURLINE}")
+            BUF=("${BEFORE[@]}" "${NEWLINES[@]}" "${AFTER[@]}")
+            CURLINE=$(( CURLINE + ${#NEWLINES[@]} ))
+            MODIFIED=1
+            ;;
+         # insert before current line
+         i)
+            local -a NEWLINES
+            while IFS= read -r LINE; do
+               [[ "$LINE" == "." ]] && break
+               NEWLINES+=("$LINE")
+            done
+            local BEFORE=("${BUF[@]:0:$((CURLINE-1))}")
+            local AFTER=("${BUF[@]:$((CURLINE-1))}")
+            BUF=("${BEFORE[@]}" "${NEWLINES[@]}" "${AFTER[@]}")
+            CURLINE=$(( CURLINE + ${#NEWLINES[@]} - 1 ))
+            MODIFIED=1
+            ;;
+         # delete current line
+         d|[0-9]*d)
+            local N="${CMD%%[!0-9]*}"
+            [[ -z "$N" ]] && N=$CURLINE
+            if (( N >= 1 && N <= ${#BUF[@]} )); then
+               unset 'BUF[$((N-1))]'
+               BUF=("${BUF[@]}")
+               (( CURLINE > ${#BUF[@]} )) && CURLINE=${#BUF[@]}
+               MODIFIED=1
+            else
+               echo "?"
+            fi
+            ;;
+         # print all with line numbers
+         ,n)
+            local I=1
+            for LINE in "${BUF[@]}"; do
+               printf "%d\t%s\n" "$I" "$LINE"
+               (( I++ ))
+            done
+            ;;
+         # print all
+         ,p)
+            for LINE in "${BUF[@]}"; do echo "$LINE"; done
+            ;;
+         # substitute
+         s/*)
+            local REST="${CMD:2}"
+            local PAT="${REST%%/*}"
+            REST="${REST#*/}"
+            local REP="${REST%%/*}"
+            REST="${REST#*/}"
+            if [[ "$REST" == "g" ]]; then
+               BUF[$((CURLINE-1))]="${BUF[$((CURLINE-1))]//$PAT/$REP}"
+            else
+               BUF[$((CURLINE-1))]="${BUF[$((CURLINE-1))]/$PAT/$REP}"
+            fi
+            MODIFIED=1
+            echo "${BUF[$((CURLINE-1))]}"
+            ;;
+         # write
+         w|w\ *)
+            local WFILE="${CMD#w}"
+            WFILE="${WFILE# }"
+            [[ -z "$WFILE" ]] && WFILE="$FILENAME"
+            if [[ -z "$WFILE" ]]; then
+               echo "?"
+            else
+               FILENAME="$WFILE"
+               printf '%s\n' "${BUF[@]}" > "$WFILE"
+               MODIFIED=0
+               echo "${#BUF[@]}"
+            fi
+            ;;
+         # quit
+         q)
+            if (( MODIFIED )); then
+               echo "?"
+               MODIFIED=0   # second q will exit
+            else
+               exit 0
+            fi
+            ;;
+         Q) exit 0 ;;
+         # print line count
+         '$')
+            echo "${#BUF[@]}"
+            ;;
+         # set prompt
+         P)
+            [[ -z "$PROMPT" ]] && PROMPT="*" || PROMPT=""
+            ;;
+         "")
+            # next line
+            if (( CURLINE < ${#BUF[@]} )); then
+               (( CURLINE++ ))
+               echo "${BUF[$((CURLINE-1))]}"
+            else
+               echo "?"
+            fi
+            ;;
+         *)
+            echo "?"
+            ;;
+      esac
+   done
+}
+
+main "$@"

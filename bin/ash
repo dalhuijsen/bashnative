@@ -1,0 +1,3 @@
+#!/bin/bash
+# bashnative/ash - Almquist shell (just bash in disguise)
+exec /bin/bash "$@"
