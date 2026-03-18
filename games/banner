@@ -1,16 +1,24 @@
 #!/bin/bash
-# bashnative/banner - print large ASCII art text
-# Classic BSD banner: just figlet with the big font
+# bashnative/banner - print large banner text (one letter at a time)
+# Classic BSD banner: each character fills the terminal width, printed
+# vertically one after another, like a physical banner printer.
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
 
 main () {
    [[ "$1" == "--help" || "$1" == "-h" ]] && {
       echo "Usage: banner TEXT"
-      echo "Print TEXT in large letters."
+      echo "Print TEXT as a vertical banner (one big letter at a time)."
       exit 0
    }
-   "${BASHNATIVE}/bin/figlet" -f big "$@"
+   local TEXT="${*:-HELLO}"
+   local I=0
+   while (( I < ${#TEXT} )); do
+      local CH="${TEXT:$I:1}"
+      "${BASHNATIVE}/bin/figlet" -f big "$CH"
+      echo
+      (( I++ ))
+   done
 }
 
 main "$@"
