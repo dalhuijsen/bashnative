@@ -60,7 +60,8 @@ main () {
    shopt -s checkwinsize; (:)
    local ROWS=${LINES:-24} COLS=${COLUMNS:-80}
 
-   stty -echo -icanon min 0 time 0 2>/dev/null
+   # keep isig so ^C still sends SIGINT
+   stty -echo -icanon min 0 time 0 isig 2>/dev/null
    echo -ne '\e[?25l\e[?1049h\e[H\e[J'
    trap cleanup EXIT INT TERM
    trap 'shopt -s checkwinsize; (:); ROWS=${LINES:-24}; COLS=${COLUMNS:-80}; init_cols' WINCH
