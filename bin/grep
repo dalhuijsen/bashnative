@@ -11,6 +11,7 @@ VFLAG=0
 CFLAG=0
 LFLAG=0
 NFLAG=0
+QFLAG=0
 
 main () {
    while [[ "${1:0:1}" == "-" ]]; do
@@ -20,6 +21,7 @@ main () {
          -c) CFLAG=1 ;;
          -l) LFLAG=1 ;;
          -n) NFLAG=1 ;;
+         -q|--quiet|--silent) QFLAG=1 ;;
          -iv|-vi) IFLAG=1; VFLAG=1 ;;
          --help|-h) helpmsg; exit 0 ;;
          --) shift; break ;;
@@ -83,6 +85,11 @@ grep_stream () {
       if (( MATCH )); then
          FOUND=1
          (( MATCHCOUNT++ ))
+
+         # quiet mode: found a match, we're done
+         if (( QFLAG )); then
+            return 0
+         fi
 
          if (( LFLAG )); then
             echo "$FNAME"

@@ -1,3 +1,16 @@
 #!/bin/bash
-echo "$USER"
-
+# bashnative/whoami - print effective userid
+if [[ -n "$USER" ]]; then
+   echo "$USER"
+elif [[ -r /etc/passwd ]]; then
+   # look up uid in passwd
+   while IFS=: read -r NAME _ PUID _; do
+      if [[ "$PUID" == "${UID:-0}" ]]; then
+         echo "$NAME"
+         exit 0
+      fi
+   done < /etc/passwd
+   echo "uid ${UID:-0}"
+else
+   echo "${LOGNAME:-$(id -un 2>/dev/null || echo unknown)}"
+fi

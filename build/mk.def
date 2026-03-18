@@ -51,8 +51,11 @@ $END
 #  include <unistd.h>
 #endif
 
-#if defined (HAVE_SYS_SYSMACROS_H)
+/* makedev() lives in different places on different systems */
+#if defined (__linux__) || defined (HAVE_SYS_SYSMACROS_H)
 #  include <sys/sysmacros.h>
+#elif defined (HAVE_SYS_MKDEV_H)
+#  include <sys/mkdev.h>
 #endif
 
 #include "../bashtypes.h"

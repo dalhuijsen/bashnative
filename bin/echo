@@ -22,4 +22,4 @@ while [[ "${1:0:1}" == "-" ]]; do
    shift
 done
 
-echo $NFLAG $EFLAG "$*"
+builtin echo $NFLAG $EFLAG "$@"
