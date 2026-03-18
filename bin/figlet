@@ -52,35 +52,27 @@ render () {
    read -r HEIGHT < "$FONTFILE"
 
    # read character definitions into associative array
-   # format: after height line, blocks of: CHAR\n line1\n line2\n ... lineN\n
+   # store each line separately: GLYPHS["A:0"], GLYPHS["A:1"], etc.
    local -A GLYPHS
    local CHAR="" LINENUM=0
-   local -a GLYPH_LINES
-   local SKIP=1
+   local SKIP=1 HAVE_CHAR=""
 
    while IFS= read -r LINE; do
       if (( SKIP )); then
          SKIP=0
          continue
       fi
-      if [[ -z "$CHAR" ]]; then
+      if [[ -z "$HAVE_CHAR" ]]; then
          CHAR="$LINE"
-         GLYPH_LINES=()
+         # empty line = space character
+         [[ -z "$CHAR" ]] && CHAR=" "
          LINENUM=0
+         HAVE_CHAR=1
       else
-         GLYPH_LINES+=("$LINE")
+         GLYPHS["${CHAR}:${LINENUM}"]="$LINE"
          (( LINENUM++ ))
          if (( LINENUM >= HEIGHT )); then
-            # join with | separator
-            local JOINED=""
-            local I=0
-            for GL in "${GLYPH_LINES[@]}"; do
-               (( I > 0 )) && JOINED="${JOINED}|"
-               JOINED="${JOINED}${GL}"
-               (( I++ ))
-            done
-            GLYPHS["$CHAR"]="$JOINED"
-            CHAR=""
+            HAVE_CHAR=""
          fi
       fi
    done < "$FONTFILE"
@@ -91,11 +83,12 @@ render () {
       local I=0
       while (( I < ${#TEXT} )); do
          local CH="${TEXT:$I:1}"
-         local GLYPH="${GLYPHS[$CH]:-${GLYPHS[' ']}}"
-         # extract row
-         local -a PARTS
-         IFS='|' read -ra PARTS <<< "$GLYPH"
-         echo -n "${PARTS[$ROW]:-     }"
+         local KEY="${CH}:${ROW}"
+         if [[ -n "${GLYPHS[$KEY]+x}" ]]; then
+            printf '%s' "${GLYPHS[$KEY]}"
+         else
+            printf '%s' "     "
+         fi
          (( I++ ))
       done
       echo
