@@ -37,8 +37,6 @@ shopt -s nocaseglob 2>/dev/null      # case-insensitive globbing
 shopt -s expand_aliases              # expand aliases in scripts
 shopt -s extglob 2>/dev/null         # extended pattern matching
 
-# don't exit on ctrl-d (require 'exit')
-set -o ignoreeof 2>/dev/null
 
 # vi mode (we have vi now!)
 # set -o vi   # uncomment if you prefer vi keybindings
