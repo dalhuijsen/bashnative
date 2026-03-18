@@ -6,38 +6,56 @@
                                  Copyright(C)2011-2013 GPL
 
 
-Project completion: ~ 25%
-Latest milestone: mk builtin for mkdir/mkfifo/mknod; 80+ tools
+Project completion: ~ 65%
+Latest milestone: fs builtin (9 syscalls), vi editor, 130+ tools
 Top priority: test coverage and edge cases
 
 Project goal status:
 
-  BusyBox replacement: 40%;
-  CoreUtils replacement: 30%;
+  BusyBox replacement: 55%;
+  CoreUtils replacement: 87% (90/103);
 
 
 
 Bashnative currently provides:
 
-  [ arch base64 basename cat chmod clear cp curl cut date dirname du
-  echo editor env expand expr false find fold grep groups head hexdump
-  hostname id kill ln logname ls man md5sum mkdir mkfifo mknod mktemp
-  more mv nc nl nohup nproc od paste printenv printf pwd readlink
-  realpath reset rev rm rmdir seq sleep sort split stat strings sync
-  tail tee test timeout touch tr true tty uname unexpand uniq uptime
-  users wc wget whereis which whoami xargs yes [1]
+  [ arch base32 base64 basename bc cal cat chgrp chmod chown cksum
+  clear cmp comm cp csplit curl cut date dc df diff dir dircolors
+  dirname du echo editor env expand expr factor false find fmt fold
+  free grep groups head hexdump hostid hostname id install join kill
+  link ln logname ls man md5sum mkdir mkfifo mknod mktemp more mv nc
+  nl nohup nproc nslookup numfmt od paste pathchk pgrep pidof pinky
+  pkill pr printenv printf ps pwd readlink realpath reset rev rm rmdir
+  sed seq sha1sum sha256sum sha512sum shuf sleep sort split stat
+  strings sum sync tac tail tee telnet test time timeout touch tr tree
+  true truncate tsort tty uname unexpand uniq unlink uptime usleep
+  users vdir vi vim watch wc wget whois whereis which whoami xargs
+  yes [1]
+
 
 
 Build system:
 
-  build/build-bash.sh compiles a patched bash binary with the 'mk'
-  builtin.  The 'mk' builtin provides mkdir(2), mkfifo(3), and
-  mknod(2) syscalls that cannot be done in pure bash.
+  build/build-bash.sh compiles a patched bash binary with the 'fs'
+  builtin.  The 'fs' builtin provides filesystem syscalls that
+  cannot be done in pure bash:
+
+    fs mkdir, fs mkfifo, fs mknod    (creation)
+    fs chmod, fs chown               (permissions)
+    fs rm, fs rmdir                  (deletion)
+    fs ln                            (links)
+    fs mv                            (rename)
 
   Usage: cd build && ./build-bash.sh [--static] [-j4]
 
   The resulting bash binary + all scripts in bin/ is a complete
   minimal userland.  One binary.  Everything else is a text file.
+
+
+Docker:
+
+  ./z_build/tests/test-container.sh          build & run interactively
+  ./z_build/tests/test-container.sh test     run automated smoke tests
 
 
 
@@ -56,19 +74,43 @@ Underlying philosophy:
 	No compilation necessary, not ever, a text editor is all you need. [2]
 
 
-Three-pronged approach for missing syscalls:
+Design constraints:
 
-  The 'mk' function (function/mk) automatically picks the best method:
-  1. mk builtin   - patched bashnative bash (zero overhead)
-  2. enable -f     - stock bash + compiled loadable (no fork per call)
-  3. external bins - /usr/bin/mkdir etc (works anywhere, but forks)
+  Text only.  All bashnative tools operate on text.  Binary file
+  operations (dd, tar, gzip, etc) are out of scope by design.
+  Bash's read/echo/printf work on strings, not raw bytes.  Tools
+  like cp, cat, and hexdump do their best but are NOT binary safe.
+
+  One binary.  The only compiled code is /bin/bash (with the 'fs'
+  builtin patched in).  Everything else is a plain text bash script.
+  If it can't be done with bash builtins, parameter expansion, and
+  /proc, it doesn't belong here.
+
+  Syscalls via 'fs'.  Operations that require kernel syscalls
+  (mkdir, chmod, unlink, etc) go through the 'fs' builtin, with a
+  three-pronged fallback chain:
+    1. fs builtin   - patched bashnative bash (zero overhead)
+    2. enable -f     - stock bash + compiled loadable (no fork per call)
+    3. external bins - /usr/bin/mkdir etc (works anywhere, but forks)
+
+  Hash functions (sha*sum, md5sum) wrap available system tools when
+  present.  Pure bash implementations would work but are too slow
+  to be practical.
+
+
+Not in scope (by design):
+
+  Binary I/O:     dd, tar, gzip, bzip2, xz, zip, shred
+  SELinux:        chcon, runcon
+  Process ctrl:   nice, renice, stdbuf (need syscalls we don't have)
+  Kernel/HW:      mount, insmod, modprobe, mknod for real devices
 
 
 
 [1] disclaimer: even though the programs are similar in functionality as
     their named counterparts, they are not exact copies.  Furthermore some
-    are just links, for instance, vim, vi, nano and pico all link to the
-    editor program. These links are just there for usability reasons.
+    are just links, for instance, nano and pico link to the editor
+    program, and vim links to vi.
 
-[2] well, almost.  The 'mk' builtin for mkdir/mkfifo/mknod requires one
-    initial compilation of bash.  After that, everything is text files.
+[2] well, almost.  The 'fs' builtin requires one initial compilation
+    of bash.  After that, everything is text files.

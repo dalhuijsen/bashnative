@@ -1,0 +1,67 @@
+#!/bin/bash
+# bashnative/cksum - checksum and count the bytes in a file
+# CRC32 in pure bash.  Not fast but correct.
+
+# CRC32 lookup table (POSIX cksum variant)
+# We generate it at runtime because embedding 256 entries is ugly
+declare -a CRC_TABLE
+
+crc_init () {
+   local I J CRC
+   for (( I=0; I<256; I++ )); do
+      CRC=$I
+      for (( J=0; J<8; J++ )); do
+         if (( CRC & 1 )); then
+            CRC=$(( (CRC >> 1) ^ 0xEDB88320 ))
+         else
+            CRC=$(( CRC >> 1 ))
+         fi
+      done
+      CRC_TABLE[$I]=$CRC
+   done
+}
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: cksum [FILE]..."
+      exit 0
+   fi
+
+   crc_init
+
+   if [[ -z "$1" ]]; then
+      cksum_stream ""
+   else
+      for FILE in "$@"; do
+         if [[ ! -r "$FILE" ]]; then
+            echo "cksum: ${FILE}: No such file or directory" >&2
+         else
+            cksum_stream "$FILE" < "$FILE"
+         fi
+      done
+   fi
+}
+
+cksum_stream () {
+   local FNAME="$1"
+   local CRC=0xFFFFFFFF
+   local BYTES=0
+
+   while IFS= read -r -N 1 CHAR; do
+      printf -v ORD '%d' "'$CHAR"
+      CRC=$(( (CRC >> 8) ^ CRC_TABLE[(CRC ^ ORD) & 0xFF] ))
+      (( BYTES++ ))
+   done
+
+   CRC=$(( CRC ^ 0xFFFFFFFF ))
+   # make unsigned
+   (( CRC < 0 )) && CRC=$(( CRC + 4294967296 ))
+
+   if [[ -n "$FNAME" ]]; then
+      echo "${CRC} ${BYTES} ${FNAME}"
+   else
+      echo "${CRC} ${BYTES}"
+   fi
+}
+
+main "$@"

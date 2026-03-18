@@ -1,0 +1,36 @@
+#!/bin/bash
+# bashnative/chgrp - change group ownership
+# Wrapper around fs chown with :GID syntax
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: chgrp GROUP FILE..."; exit 0; }
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "chgrp: missing operand" >&2
+      exit 1
+   fi
+
+   local GROUP="$1"
+   shift
+
+   # look up GID if group is a name
+   local GID="$GROUP"
+   if [[ ! "$GROUP" =~ ^[0-9]+$ ]] && [[ -r /etc/group ]]; then
+      while IFS=: read -r GNAME _ GGID _; do
+         if [[ "$GNAME" == "$GROUP" ]]; then
+            GID="$GGID"
+            break
+         fi
+      done < /etc/group
+   fi
+
+   for FILE in "$@"; do
+      # chown with -1 uid preserves owner, changes group
+      fs chown "-1:${GID}" "$FILE"
+   done
+}
+
+main "$@"

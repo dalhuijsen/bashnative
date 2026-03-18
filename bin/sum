@@ -1,0 +1,12 @@
+#!/bin/bash
+# bashnative/sum - checksum and count the blocks in a file
+# Legacy BSD checksum; wraps cksum output
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: sum [FILE]..."
+   exit 0
+fi
+
+"${BASHNATIVE}/bin/cksum" "$@"

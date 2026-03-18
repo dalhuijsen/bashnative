@@ -1,0 +1,70 @@
+#!/bin/bash
+# bashnative/install - copy files and set attributes
+# Combines cp + mkdir -p + chmod + chown
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
+
+MODE="0755"
+OWNER=""
+DFLAG=0
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -m) shift; MODE="$1" ;;
+         -o) shift; OWNER="$1" ;;
+         -d) DFLAG=1 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if (( DFLAG )); then
+      # create directories
+      for DIR in "$@"; do
+         fs mkdir -p "$DIR" "$MODE"
+      done
+   else
+      if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+         echo "install: missing operand" >&2
+         exit 1
+      fi
+
+      local SRC="$1" DST="$2"
+
+      # if DST is a directory, put file inside it
+      if [[ -d "$DST" ]]; then
+         DST="${DST}/${SRC##*/}"
+      fi
+
+      # ensure parent directory exists
+      local DSTDIR="${DST%/*}"
+      [[ -n "$DSTDIR" ]] && [[ ! -d "$DSTDIR" ]] && fs mkdir -p "$DSTDIR"
+
+      # copy
+      "${BASHNATIVE}/bin/cp" "$SRC" "$DST"
+
+      # set permissions
+      fs chmod "$MODE" "$DST"
+
+      # set ownership if requested
+      [[ -n "$OWNER" ]] && fs chown "$OWNER" "$DST"
+   fi
+}
+
+helpmsg () {
+echo "Usage: install [OPTION]... SOURCE DEST
+  or:  install -d DIRECTORY...
+Copy files and set attributes.
+
+  -m MODE   set permission mode (default: 0755)
+  -o OWNER  set ownership (UID or UID:GID)
+  -d        create directories
+  -h        display this help and exit
+"
+}
+
+main "$@"

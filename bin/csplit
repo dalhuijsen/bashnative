@@ -1,0 +1,39 @@
+#!/bin/bash
+# bashnative/csplit - split a file into sections determined by context lines
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: csplit FILE PATTERN..."; exit 0; }
+
+   local FILE="$1"
+   shift
+
+   if [[ -z "$FILE" ]] || [[ ! -r "$FILE" ]]; then
+      echo "csplit: missing file or cannot read" >&2
+      exit 1
+   fi
+
+   local PATTERN="$1"
+   # strip leading/trailing /
+   PATTERN="${PATTERN#/}"
+   PATTERN="${PATTERN%/}"
+
+   local PARTNUM=0 LINECOUNT=0
+   local OUTFILE
+
+   printf -v OUTFILE "xx%02d" "$PARTNUM"
+   > "$OUTFILE"
+
+   while IFS= read -r LINE; do
+      if [[ "$LINE" =~ $PATTERN ]]; then
+         (( PARTNUM++ ))
+         printf -v OUTFILE "xx%02d" "$PARTNUM"
+         > "$OUTFILE"
+      fi
+      echo "$LINE" >> "$OUTFILE"
+      (( LINECOUNT++ ))
+   done < "$FILE"
+
+   echo "$LINECOUNT"
+}
+
+main "$@"

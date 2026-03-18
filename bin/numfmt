@@ -1,0 +1,58 @@
+#!/bin/bash
+# bashnative/numfmt - convert numbers from/to human-readable strings
+
+main () {
+   local TOFLAG=0 FROMFLAG=0 FORMAT=""
+
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         --to=*) FORMAT="${1#*=}"; TOFLAG=1 ;;
+         --to) shift; FORMAT="$1"; TOFLAG=1 ;;
+         --from=*) FROMFLAG=1 ;;
+         --help|-h) echo "Usage: numfmt [--to=iec|si] [NUMBER]..."; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      while read -r NUM; do
+         format_num "$NUM"
+      done
+   else
+      for NUM in "$@"; do
+         format_num "$NUM"
+      done
+   fi
+}
+
+format_num () {
+   local N="$1"
+
+   if (( !TOFLAG )); then
+      echo "$N"
+      return
+   fi
+
+   local -a SUFFIXES
+   local BASE
+   if [[ "$FORMAT" == "iec" ]]; then
+      SUFFIXES=(B K M G T P)
+      BASE=1024
+   else
+      SUFFIXES=("" K M G T P)
+      BASE=1000
+   fi
+
+   local I=0
+   local VAL=$N
+   while (( VAL >= BASE && I < ${#SUFFIXES[@]} - 1 )); do
+      VAL=$(( VAL / BASE ))
+      (( I++ ))
+   done
+
+   echo "${VAL}${SUFFIXES[$I]}"
+}
+
+main "$@"
