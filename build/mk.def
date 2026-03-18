@@ -1,0 +1,257 @@
+This file is mk.def, from which is created mk.c.
+It implements the builtin "mk" in Bash.
+
+Copyright (C) 2011-2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+
+This file is part of bashnative, the UNIX userland system written in BASH.
+
+bashnative is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+bashnative is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with bashnative.  If not, see <http://www.gnu.org/licenses/>.
+
+$PRODUCES mk.c
+
+$BUILTIN mk
+$FUNCTION mk_builtin
+$SHORT_DOC mk type path [args]
+Create filesystem objects (directories, FIFOs, device nodes).
+
+  mk dir [-p] PATH [MODE]           create a directory
+  mk fifo PATH [MODE]               create a FIFO (named pipe)
+  mk nod PATH {b|c|p} MAJOR MINOR [MODE]  create a device node
+
+MODE is an octal permission mode (default: 0755 for dirs, 0644 otherwise).
+The -p flag creates parent directories as needed.
+
+This builtin provides the missing mk{dir,fifo,nod} syscalls that
+cannot be implemented in pure bash.
+
+Exit Status:
+Returns success unless the object cannot be created.
+$END
+
+#include <config.h>
+
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
+
+#if defined (HAVE_SYS_SYSMACROS_H)
+#  include <sys/sysmacros.h>
+#endif
+
+#include "../bashtypes.h"
+#include "../bashintl.h"
+#include "../shell.h"
+#include "common.h"
+
+#ifndef PATH_MAX
+#  define PATH_MAX 4096
+#endif
+
+static int
+mk_parse_octal (s)
+     const char *s;
+{
+  int mode = 0;
+
+  while (*s >= '0' && *s <= '7')
+    {
+      mode = (mode << 3) | (*s - '0');
+      s++;
+    }
+  return mode;
+}
+
+static int
+mk_parents (path, mode)
+     const char *path;
+     mode_t mode;
+{
+  char buf[PATH_MAX];
+  char *p;
+  int len;
+
+  len = strlen (path);
+  if (len >= PATH_MAX)
+    {
+      errno = ENAMETOOLONG;
+      return (-1);
+    }
+
+  strcpy (buf, path);
+
+  for (p = buf + 1; *p; p++)
+    {
+      if (*p == '/')
+        {
+          *p = '\0';
+          if (mkdir (buf, mode) < 0 && errno != EEXIST)
+            return (-1);
+          *p = '/';
+        }
+    }
+  return (mkdir (buf, mode));
+}
+
+int
+mk_builtin (list)
+     WORD_LIST *list;
+{
+  char *type, *path;
+  mode_t mode;
+  int pflag;
+
+  if (list == 0)
+    {
+      builtin_usage ();
+      return (EX_USAGE);
+    }
+
+  type = list->word->word;
+  list = list->next;
+
+  if (list == 0)
+    {
+      builtin_usage ();
+      return (EX_USAGE);
+    }
+
+  /* ---- mk dir [-p] PATH [MODE] ---- */
+  if (STREQ (type, "dir"))
+    {
+      pflag = 0;
+
+      if (STREQ (list->word->word, "-p"))
+        {
+          pflag = 1;
+          list = list->next;
+          if (list == 0)
+            {
+              builtin_usage ();
+              return (EX_USAGE);
+            }
+        }
+
+      path = list->word->word;
+      list = list->next;
+
+      mode = 0755;
+      if (list && list->word->word[0] >= '0' && list->word->word[0] <= '7')
+        mode = (mode_t) mk_parse_octal (list->word->word);
+
+      if (pflag)
+        {
+          if (mk_parents (path, mode) < 0 && errno != EEXIST)
+            {
+              builtin_error ("%s: %s", path, strerror (errno));
+              return (EXECUTION_FAILURE);
+            }
+        }
+      else
+        {
+          if (mkdir (path, mode) < 0)
+            {
+              builtin_error ("%s: %s", path, strerror (errno));
+              return (EXECUTION_FAILURE);
+            }
+        }
+
+      return (EXECUTION_SUCCESS);
+    }
+
+  /* ---- mk fifo PATH [MODE] ---- */
+  if (STREQ (type, "fifo"))
+    {
+      path = list->word->word;
+      list = list->next;
+
+      mode = 0644;
+      if (list && list->word->word[0] >= '0' && list->word->word[0] <= '7')
+        mode = (mode_t) mk_parse_octal (list->word->word);
+
+      if (mkfifo (path, mode) < 0)
+        {
+          builtin_error ("%s: %s", path, strerror (errno));
+          return (EXECUTION_FAILURE);
+        }
+
+      return (EXECUTION_SUCCESS);
+    }
+
+  /* ---- mk nod PATH {b|c|p} MAJOR MINOR [MODE] ---- */
+  if (STREQ (type, "nod"))
+    {
+      char ntype;
+      int major_n, minor_n;
+      dev_t dev;
+      mode_t ftype;
+
+      path = list->word->word;
+      list = list->next;
+
+      if (list == 0 || list->next == 0 || list->next->next == 0)
+        {
+          builtin_error ("usage: mk nod PATH {b|c|p} MAJOR MINOR [MODE]");
+          return (EX_USAGE);
+        }
+
+      ntype = list->word->word[0];
+      list = list->next;
+
+      major_n = atoi (list->word->word);
+      list = list->next;
+
+      minor_n = atoi (list->word->word);
+      list = list->next;
+
+      mode = 0666;
+      if (list && list->word->word[0] >= '0' && list->word->word[0] <= '7')
+        mode = (mode_t) mk_parse_octal (list->word->word);
+
+      switch (ntype)
+        {
+        case 'b':
+          ftype = S_IFBLK;
+          dev = makedev (major_n, minor_n);
+          break;
+        case 'c':
+          ftype = S_IFCHR;
+          dev = makedev (major_n, minor_n);
+          break;
+        case 'p':
+          ftype = S_IFIFO;
+          dev = 0;
+          break;
+        default:
+          builtin_error ("'%c': invalid node type (use b, c, or p)", ntype);
+          return (EXECUTION_FAILURE);
+        }
+
+      if (mknod (path, mode | ftype, dev) < 0)
+        {
+          builtin_error ("%s: %s", path, strerror (errno));
+          return (EXECUTION_FAILURE);
+        }
+
+      return (EXECUTION_SUCCESS);
+    }
+
+  builtin_error ("'%s': unknown type (use dir, fifo, or nod)", type);
+  return (EX_USAGE);
+}
