@@ -1,0 +1,118 @@
+#!/bin/bash
+# bashnative/figlet - display large characters made from ordinary screen characters
+# Supports multiple fonts via font files in BASHNATIVE/games/fonts/
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+FONTDIR="${BASHNATIVE}/games/fonts"
+FONTNAME="standard"
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -f) shift; FONTNAME="$1" ;;
+         --list|-l) list_fonts; exit 0 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   local FONTFILE="${FONTDIR}/${FONTNAME}.font"
+   if [[ ! -r "$FONTFILE" ]]; then
+      echo "figlet: font '${FONTNAME}' not found" >&2
+      echo "Available fonts: $(list_fonts)" >&2
+      exit 1
+   fi
+
+   local TEXT="${*:-}"
+   if [[ -z "$TEXT" ]]; then
+      while IFS= read -r LINE; do
+         render "$LINE" "$FONTFILE"
+      done
+   else
+      render "$TEXT" "$FONTFILE"
+   fi
+}
+
+list_fonts () {
+   for F in "${FONTDIR}"/*.font; do
+      [[ -f "$F" ]] || continue
+      local NAME="${F##*/}"
+      echo "${NAME%.font}"
+   done
+}
+
+render () {
+   local TEXT="$(echo "$1" | tr 'a-z' 'A-Z')"   # uppercase for our fonts
+   local FONTFILE="$2"
+   local HEIGHT=0
+
+   # read font height from first line
+   read -r HEIGHT < "$FONTFILE"
+
+   # read character definitions into associative array
+   # format: after height line, blocks of: CHAR\n line1\n line2\n ... lineN\n
+   local -A GLYPHS
+   local CHAR="" LINENUM=0
+   local -a GLYPH_LINES
+   local SKIP=1
+
+   while IFS= read -r LINE; do
+      if (( SKIP )); then
+         SKIP=0
+         continue
+      fi
+      if [[ -z "$CHAR" ]]; then
+         CHAR="$LINE"
+         GLYPH_LINES=()
+         LINENUM=0
+      else
+         GLYPH_LINES+=("$LINE")
+         (( LINENUM++ ))
+         if (( LINENUM >= HEIGHT )); then
+            # join with | separator
+            local JOINED=""
+            local I=0
+            for GL in "${GLYPH_LINES[@]}"; do
+               (( I > 0 )) && JOINED="${JOINED}|"
+               JOINED="${JOINED}${GL}"
+               (( I++ ))
+            done
+            GLYPHS["$CHAR"]="$JOINED"
+            CHAR=""
+         fi
+      fi
+   done < "$FONTFILE"
+
+   # render text line by line
+   local ROW=0
+   while (( ROW < HEIGHT )); do
+      local I=0
+      while (( I < ${#TEXT} )); do
+         local CH="${TEXT:$I:1}"
+         local GLYPH="${GLYPHS[$CH]:-${GLYPHS[' ']}}"
+         # extract row
+         local -a PARTS
+         IFS='|' read -ra PARTS <<< "$GLYPH"
+         echo -n "${PARTS[$ROW]:-     }"
+         (( I++ ))
+      done
+      echo
+      (( ROW++ ))
+   done
+}
+
+helpmsg () {
+echo "Usage: figlet [-f FONT] TEXT
+Display large characters made from ordinary screen characters.
+
+  -f FONT    select font (default: standard)
+  -l, --list list available fonts
+  -h, --help display this help
+
+Available fonts:"
+   list_fonts | sed 's/^/  /'
+}
+
+main "$@"

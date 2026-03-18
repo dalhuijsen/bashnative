@@ -1,0 +1,44 @@
+#!/bin/bash
+# bashnative/morse - translate text to/from morse code
+
+declare -A TO_MORSE=(
+   [A]=".-"    [B]="-..."  [C]="-.-."  [D]="-.."   [E]="."
+   [F]="..-."  [G]="--."   [H]="...."  [I]=".."    [J]=".---"
+   [K]="-.-"   [L]=".-.."  [M]="--"    [N]="-."    [O]="---"
+   [P]=".--."  [Q]="--.-"  [R]=".-."   [S]="..."   [T]="-"
+   [U]="..-"   [V]="...-"  [W]=".--"   [X]="-..-"  [Y]="-.--"
+   [Z]="--.."
+   [0]="-----" [1]=".----" [2]="..---" [3]="...--" [4]="....-"
+   [5]="....." [6]="-...." [7]="--..." [8]="---.." [9]="----."
+   [.]=".-.-.-" [,]="--..--" [?]="..--.." [!]="-.-.--"
+   [/]="-..-." [=]="-...-"  [+]=".-.-."  [-]="-....-"
+)
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: morse [TEXT] or echo TEXT | morse"; exit 0; }
+
+   if [[ -n "$*" ]]; then
+      encode "$*"
+   else
+      while IFS= read -r LINE; do
+         encode "$LINE"
+      done
+   fi
+}
+
+encode () {
+   local TEXT="${1^^}"   # uppercase
+   local I=0
+   while (( I < ${#TEXT} )); do
+      local CH="${TEXT:$I:1}"
+      if [[ "$CH" == " " ]]; then
+         echo -n "/ "
+      elif [[ -n "${TO_MORSE[$CH]+x}" ]]; then
+         echo -n "${TO_MORSE[$CH]} "
+      fi
+      (( I++ ))
+   done
+   echo
+}
+
+main "$@"

@@ -1,0 +1,55 @@
+#!/bin/bash
+# bashnative/pig - convert English to Pig Latin
+# Rules: consonant cluster moves to end + "ay", vowel-start gets "yay"
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: pig [TEXT] or echo TEXT | pig"; exit 0; }
+
+   if [[ -n "$*" ]]; then
+      translate "$*"
+   else
+      while IFS= read -r LINE; do
+         translate "$LINE"
+      done
+   fi
+}
+
+translate () {
+   local FIRST=1
+   for WORD in $1; do
+      (( FIRST )) || echo -n " "
+      FIRST=0
+      pig_word "$WORD"
+   done
+   echo
+}
+
+pig_word () {
+   local W="$1"
+   local LOWER="${W,,}"
+
+   # starts with vowel?
+   case "${LOWER:0:1}" in
+      a|e|i|o|u)
+         echo -n "${W}yay"
+         return
+         ;;
+   esac
+
+   # find first vowel position
+   local I=0
+   while (( I < ${#LOWER} )); do
+      case "${LOWER:$I:1}" in
+         a|e|i|o|u) break ;;
+      esac
+      (( I++ ))
+   done
+
+   if (( I >= ${#W} )); then
+      echo -n "${W}ay"
+   else
+      echo -n "${W:$I}${W:0:$I}ay"
+   fi
+}
+
+main "$@"

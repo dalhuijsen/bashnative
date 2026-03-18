@@ -1,0 +1,155 @@
+#!/bin/bash
+# bashnative/wump - Hunt the Wumpus
+# Classic cave exploration game.  Navigate 20 rooms connected as a
+# dodecahedron, avoid pits and bats, shoot the Wumpus with arrows.
+
+# room connections (dodecahedron graph, 1-indexed)
+# each room connects to 3 others
+CAVE=(
+   ""  # room 0 unused
+   "2 5 8"    "1 3 10"   "2 4 12"   "3 5 14"   "1 4 6"
+   "5 7 15"   "6 8 17"   "1 7 9"    "8 10 18"  "2 9 11"
+   "10 12 19" "3 11 13"  "12 14 20" "4 13 15"  "6 14 16"
+   "15 17 20" "7 16 18"  "9 17 19"  "11 18 20" "13 16 19"
+)
+
+ARROWS=5
+PLAYER=0
+WUMPUS=0
+PIT1=0
+PIT2=0
+BATS1=0
+BATS2=0
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: wump"; echo "Hunt the Wumpus in a cave of 20 rooms."; exit 0; }
+
+   echo "=== HUNT THE WUMPUS ==="
+   echo
+
+   # place things randomly (all different rooms)
+   local -a USED
+   place_random PLAYER
+   place_random WUMPUS
+   place_random PIT1
+   place_random PIT2
+   place_random BATS1
+   place_random BATS2
+
+   while true; do
+      look
+      echo -n "Move or shoot? (m/s) "
+      read -r ACTION
+
+      case "${ACTION,,}" in
+         m*) do_move ;;
+         s*) do_shoot ;;
+         q*) echo "Goodbye."; exit 0 ;;
+         *)  echo "Type 'm' to move or 's' to shoot." ;;
+      esac
+   done
+}
+
+place_random () {
+   local -n REF=$1
+   while true; do
+      REF=$(( RANDOM % 20 + 1 ))
+      local COLLISION=0
+      for U in "${USED[@]}"; do
+         (( U == REF )) && COLLISION=1
+      done
+      (( COLLISION )) || break
+   done
+   USED+=($REF)
+}
+
+neighbors () { echo ${CAVE[$1]}; }
+
+look () {
+   echo
+   echo "You are in room $PLAYER."
+   echo "Tunnels lead to: $(neighbors $PLAYER)"
+
+   for N in $(neighbors $PLAYER); do
+      (( N == WUMPUS )) && echo "I smell something terrible nearby."
+      (( N == PIT1 || N == PIT2 )) && echo "I feel a draft."
+      (( N == BATS1 || N == BATS2 )) && echo "Bats nearby!"
+   done
+}
+
+do_move () {
+   echo -n "Which room? "
+   read -r ROOM
+
+   # validate
+   local VALID=0
+   for N in $(neighbors $PLAYER); do
+      (( N == ROOM )) && VALID=1
+   done
+
+   if (( !VALID )); then
+      echo "You can't get there from here!"
+      return
+   fi
+
+   PLAYER=$ROOM
+   check_room
+}
+
+check_room () {
+   if (( PLAYER == WUMPUS )); then
+      echo "The Wumpus got you! You lose."
+      exit 1
+   fi
+   if (( PLAYER == PIT1 || PLAYER == PIT2 )); then
+      echo "AAAARGH! You fell into a bottomless pit! You lose."
+      exit 1
+   fi
+   if (( PLAYER == BATS1 || PLAYER == BATS2 )); then
+      echo "A giant bat grabs you and drops you in a random room!"
+      PLAYER=$(( RANDOM % 20 + 1 ))
+      check_room
+   fi
+}
+
+do_shoot () {
+   echo -n "Shoot into which room? "
+   read -r ROOM
+
+   local VALID=0
+   for N in $(neighbors $PLAYER); do
+      (( N == ROOM )) && VALID=1
+   done
+
+   if (( !VALID )); then
+      echo "You can't shoot there!"
+      return
+   fi
+
+   (( ARROWS-- ))
+
+   if (( ROOM == WUMPUS )); then
+      echo "AHA! You got the Wumpus! YOU WIN!"
+      exit 0
+   fi
+
+   echo "Miss! The arrow clatters in room $ROOM."
+
+   # wumpus wakes up and might move
+   if (( RANDOM % 4 != 0 )); then
+      local -a WNBRS=($(neighbors $WUMPUS))
+      WUMPUS=${WNBRS[$(( RANDOM % 3 ))]}
+      if (( WUMPUS == PLAYER )); then
+         echo "The Wumpus stumbled into your room and ate you! You lose."
+         exit 1
+      fi
+   fi
+
+   if (( ARROWS <= 0 )); then
+      echo "You're out of arrows! You lose."
+      exit 1
+   fi
+   echo "You have $ARROWS arrows left."
+}
+
+main "$@"

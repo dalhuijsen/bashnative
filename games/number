@@ -1,0 +1,69 @@
+#!/bin/bash
+# bashnative/number - convert numbers to English words
+
+ONES=(zero one two three four five six seven eight nine ten
+      eleven twelve thirteen fourteen fifteen sixteen seventeen
+      eighteen nineteen)
+TENS=("" "" twenty thirty forty fifty sixty seventy eighty ninety)
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: number [NUM]"; exit 0; }
+
+   if [[ -n "$1" ]]; then
+      to_words "$1"
+   else
+      while read -r NUM; do
+         to_words "$NUM"
+      done
+   fi
+}
+
+to_words () {
+   local N=$1
+
+   if (( N < 0 )); then
+      echo -n "negative "
+      N=$(( -N ))
+   fi
+
+   if (( N >= 1000000000 )); then
+      to_words $(( N / 1000000000 ))
+      echo -n " billion "
+      N=$(( N % 1000000000 ))
+      (( N == 0 )) && { echo; return; }
+   fi
+
+   if (( N >= 1000000 )); then
+      to_words $(( N / 1000000 ))
+      echo -n " million "
+      N=$(( N % 1000000 ))
+      (( N == 0 )) && { echo; return; }
+   fi
+
+   if (( N >= 1000 )); then
+      to_words $(( N / 1000 ))
+      echo -n " thousand "
+      N=$(( N % 1000 ))
+      (( N == 0 )) && { echo; return; }
+   fi
+
+   if (( N >= 100 )); then
+      echo -n "${ONES[$(( N / 100 ))]} hundred "
+      N=$(( N % 100 ))
+      (( N == 0 )) && { echo; return; }
+   fi
+
+   if (( N >= 20 )); then
+      echo -n "${TENS[$(( N / 10 ))]}"
+      N=$(( N % 10 ))
+      if (( N > 0 )); then
+         echo -n "-${ONES[$N]}"
+      fi
+   elif (( N > 0 )) || [[ "$1" == "0" ]]; then
+      echo -n "${ONES[$N]}"
+   fi
+
+   echo
+}
+
+main "$@"

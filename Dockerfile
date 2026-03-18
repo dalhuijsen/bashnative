@@ -27,6 +27,7 @@ COPY --from=builder /src/_bashbuild/bash-5.2/bash /bin/bash
 # all bashnative scripts
 COPY bin/  /bin/
 COPY function/ /function/
+COPY games/ /games/
 
 # shell configuration
 COPY etc/profile /etc/profile
@@ -34,6 +35,7 @@ COPY etc/profile /etc/profile
 # bashnative needs to find its function library
 ENV BASHNATIVE=/
 ENV TERM=xterm-256color
+ENV PATH=/bin:/games
 
 # basic filesystem structure
 COPY --from=builder /etc/passwd /etc/passwd

@@ -1,0 +1,35 @@
+#!/bin/bash
+# bashnative/arithmetic - arithmetic quiz game
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: arithmetic"; echo "Math quiz. Ctrl-c to quit."; exit 0; }
+
+   local SCORE=0 TOTAL=0
+   local OPS=(+ - '*')
+
+   trap 'echo; echo "Score: $SCORE / $TOTAL"; exit' INT
+
+   echo "Arithmetic quiz! Type your answer and press enter."
+   echo "Press ctrl-c to see your score."
+   echo
+
+   while true; do
+      local A=$(( RANDOM % 100 ))
+      local B=$(( RANDOM % 50 + 1 ))
+      local OP="${OPS[$(( RANDOM % ${#OPS[@]} ))]}"
+      local ANSWER=$(( A $OP B ))
+
+      echo -n "${A} ${OP} ${B} = "
+      read -r GUESS
+
+      if [[ "$GUESS" == "$ANSWER" ]]; then
+         echo "Correct!"
+         (( SCORE++ ))
+      else
+         echo "Wrong. ${A} ${OP} ${B} = ${ANSWER}"
+      fi
+      (( TOTAL++ ))
+   done
+}
+
+main "$@"

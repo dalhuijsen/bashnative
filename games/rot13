@@ -1,0 +1,7 @@
+#!/bin/bash
+# bashnative/rot13 - rotate characters 13 positions
+# THE ENGINE: bash's tr-like parameter substitution won't do ranges,
+# so we use our own tr
+while IFS= read -r LINE; do
+   echo "$LINE" | tr 'A-Za-z' 'N-ZA-Mn-za-m'
+done < "${1:-/dev/stdin}"

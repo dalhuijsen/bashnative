@@ -1,0 +1,93 @@
+#!/bin/bash
+# bashnative/pom - display the phase of the moon
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: pom"; exit 0; }
+
+   # lunar cycle is ~29.53 days
+   # known new moon: Jan 6 2000 18:14 UTC = epoch 947181240
+   local LUNAR_CYCLE=2551443   # 29.53 days in seconds
+   local NEW_MOON_REF=947181240
+
+   # get current time
+   local NOW
+   printf -v NOW '%(%s)T' -1
+
+   # days into cycle
+   local PHASE_SECS=$(( (NOW - NEW_MOON_REF) % LUNAR_CYCLE ))
+   local PHASE_DAYS=$(( PHASE_SECS / 86400 ))
+   local PHASE_PCT=$(( PHASE_SECS * 100 / LUNAR_CYCLE ))
+
+   # phase name
+   local PHASE_NAME
+   if (( PHASE_PCT < 2 )); then
+      PHASE_NAME="New Moon"
+   elif (( PHASE_PCT < 23 )); then
+      PHASE_NAME="Waxing Crescent"
+   elif (( PHASE_PCT < 27 )); then
+      PHASE_NAME="First Quarter"
+   elif (( PHASE_PCT < 48 )); then
+      PHASE_NAME="Waxing Gibbous"
+   elif (( PHASE_PCT < 52 )); then
+      PHASE_NAME="Full Moon"
+   elif (( PHASE_PCT < 73 )); then
+      PHASE_NAME="Waning Gibbous"
+   elif (( PHASE_PCT < 77 )); then
+      PHASE_NAME="Last Quarter"
+   elif (( PHASE_PCT < 98 )); then
+      PHASE_NAME="Waning Crescent"
+   else
+      PHASE_NAME="New Moon"
+   fi
+
+   printf '%(%A, %B %d, %Y %H:%M)T\n' -1
+   echo
+   echo "The Moon is ${PHASE_NAME}"
+   echo "Day ${PHASE_DAYS} of lunar cycle (${PHASE_PCT}%)"
+   echo
+
+   # ASCII moon art
+   if (( PHASE_PCT < 12 )); then
+      # new moon
+      echo "    _..._   "
+      echo "  .:::::::. "
+      echo " ::::::::::: "
+      echo " ::::::::::: "
+      echo "  ':::::::' "
+      echo "    '...'   "
+   elif (( PHASE_PCT < 37 )); then
+      # crescent/first quarter
+      echo "    _..._   "
+      echo "  .::::  '. "
+      echo " ::::::    :"
+      echo " ::::::    :"
+      echo "  '::::  .' "
+      echo "    '...'   "
+   elif (( PHASE_PCT < 62 )); then
+      # full moon
+      echo "    _..._   "
+      echo "  .'     '. "
+      echo " :         :"
+      echo " :         :"
+      echo "  '.     .' "
+      echo "    '...'   "
+   elif (( PHASE_PCT < 87 )); then
+      # last quarter/gibbous
+      echo "    _..._   "
+      echo " .'  ::::. "
+      echo ":    ::::::"
+      echo ":    ::::::"
+      echo " '.  ::::' "
+      echo "    '...'   "
+   else
+      # waning crescent
+      echo "    _..._   "
+      echo "  .:::::::. "
+      echo " ::::::::::: "
+      echo " ::::::::::: "
+      echo "  ':::::::' "
+      echo "    '...'   "
+   fi
+}
+
+main "$@"

@@ -1,0 +1,153 @@
+#!/bin/bash
+# bashnative/snake - the classic snake game in pure bash
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: snake"; echo "Controls: wasd or arrow keys. q to quit."; exit 0; }
+
+   shopt -s checkwinsize; (:)
+   local ROWS=${LINES:-24} COLS=${COLUMNS:-80}
+   local GHEIGHT=$(( ROWS - 2 )) GWIDTH=$(( COLS - 2 ))
+
+   # snake as arrays of coordinates
+   local -a SX SY
+   SX=($(( GWIDTH / 2 )) $(( GWIDTH / 2 - 1 )) $(( GWIDTH / 2 - 2 )))
+   SY=($(( GHEIGHT / 2 )) $(( GHEIGHT / 2 )) $(( GHEIGHT / 2 )))
+   local DIR="RIGHT" SCORE=0 SPEED=0.12
+
+   # food
+   local FX FY
+   place_food
+
+   # terminal setup
+   stty -echo -icanon min 0 time 0 2>/dev/null
+   echo -ne '\e[?25l\e[?1049h'
+   trap 'echo -ne "\e[?25h\e[?1049l"; stty echo icanon 2>/dev/null; exit' EXIT INT TERM
+
+   draw_border
+
+   while true; do
+      # read input (non-blocking)
+      local KEY=""
+      IFS= read -r -s -n 1 -t "$SPEED" KEY
+      if [[ "$KEY" == $'\e' ]]; then
+         IFS= read -r -s -n 2 -t 0.01 KEY
+         case "$KEY" in
+            "[A") KEY="UP" ;;
+            "[B") KEY="DOWN" ;;
+            "[C") KEY="RIGHT" ;;
+            "[D") KEY="LEFT" ;;
+         esac
+      fi
+
+      case "$KEY" in
+         w|UP)    [[ "$DIR" != "DOWN" ]]  && DIR="UP" ;;
+         s|DOWN)  [[ "$DIR" != "UP" ]]    && DIR="DOWN" ;;
+         a|LEFT)  [[ "$DIR" != "RIGHT" ]] && DIR="LEFT" ;;
+         d|RIGHT) [[ "$DIR" != "LEFT" ]]  && DIR="RIGHT" ;;
+         q) break ;;
+      esac
+
+      # new head position
+      local NX=${SX[0]} NY=${SY[0]}
+      case "$DIR" in
+         UP)    (( NY-- )) ;;
+         DOWN)  (( NY++ )) ;;
+         LEFT)  (( NX-- )) ;;
+         RIGHT) (( NX++ )) ;;
+      esac
+
+      # wall collision
+      if (( NX < 1 || NX > GWIDTH || NY < 1 || NY > GHEIGHT )); then
+         game_over
+         break
+      fi
+
+      # self collision
+      local I=0
+      while (( I < ${#SX[@]} )); do
+         if (( SX[I] == NX && SY[I] == NY )); then
+            game_over
+            break 2
+         fi
+         (( I++ ))
+      done
+
+      # erase tail
+      local TAIL_X=${SX[-1]} TAIL_Y=${SY[-1]}
+
+      # check food
+      local ATE=0
+      if (( NX == FX && NY == FY )); then
+         ATE=1
+         (( SCORE++ ))
+         place_food
+         # draw new food
+         echo -ne "\e[$((FY+1));$((FX+1))H\e[1;31m*\e[0m"
+      fi
+
+      if (( !ATE )); then
+         # erase old tail
+         echo -ne "\e[$((TAIL_Y+1));$((TAIL_X+1))H "
+         # remove last segment
+         unset 'SX[-1]' 'SY[-1]'
+         SX=("${SX[@]}")
+         SY=("${SY[@]}")
+      fi
+
+      # add new head
+      SX=("$NX" "${SX[@]}")
+      SY=("$NY" "${SY[@]}")
+
+      # draw head
+      echo -ne "\e[$((NY+1));$((NX+1))H\e[1;32mO\e[0m"
+
+      # score display
+      echo -ne "\e[1;3HScore: $SCORE "
+   done
+}
+
+place_food () {
+   while true; do
+      FX=$(( RANDOM % GWIDTH + 1 ))
+      FY=$(( RANDOM % GHEIGHT + 1 ))
+      # make sure food isn't on snake
+      local COLLISION=0 I=0
+      while (( I < ${#SX[@]} )); do
+         (( SX[I] == FX && SY[I] == FY )) && COLLISION=1
+         (( I++ ))
+      done
+      (( COLLISION )) || break
+   done
+   echo -ne "\e[$((FY+1));$((FX+1))H\e[1;31m*\e[0m"
+}
+
+draw_border () {
+   echo -ne '\e[H\e[J'
+   # top
+   echo -ne "\e[1;1H+"
+   local I=1
+   while (( I <= GWIDTH )); do echo -ne "-"; (( I++ )); done
+   echo -ne "+"
+   # sides
+   I=1
+   while (( I <= GHEIGHT )); do
+      echo -ne "\e[$((I+1));1H|"
+      echo -ne "\e[$((I+1));$((GWIDTH+2))H|"
+      (( I++ ))
+   done
+   # bottom
+   echo -ne "\e[$((GHEIGHT+2));1H+"
+   I=1
+   while (( I <= GWIDTH )); do echo -ne "-"; (( I++ )); done
+   echo -ne "+"
+}
+
+game_over () {
+   local MID_Y=$(( GHEIGHT / 2 + 1 ))
+   local MID_X=$(( GWIDTH / 2 - 5 ))
+   echo -ne "\e[${MID_Y};${MID_X}H\e[1;31m GAME OVER! \e[0m"
+   echo -ne "\e[$((MID_Y+1));${MID_X}H Score: $SCORE"
+   read -r -s -n 1
+}
+
+main "$@"

@@ -1,0 +1,70 @@
+#!/bin/bash
+# bashnative/banner - print large ASCII art text
+# Built-in 5-line font.  Not as fancy as figlet but it works.
+
+declare -A FONT
+
+# 5 lines per character, pipe-separated
+FONT[A]=" _  |/ \||   ||   ||___|"
+FONT[B]=" __ | _)|  _)| _)|__ |"
+FONT[C]=" __ / _|| _ || __| \__|"
+FONT[D]=" __ |  \|| __||   ||__/ "
+FONT[E]=" ___|  __|  __|  __|___ "
+FONT[F]=" ___|  __|  __|   |    "
+FONT[G]=" ___ / __||  _ | |_| \__|"
+FONT[H]="     |   ||___||   ||   |"
+FONT[I]=" ___|_| _|  | |_| _|___|"
+FONT[J]="   _|  | |  | |__| |__| "
+FONT[K]="     |  / | / ||  \\||   \\"
+FONT[L]="     |   |   |   |___ "
+FONT[M]="      |\ /||_V_||   ||   |"
+FONT[N]="      |\  ||_\\ ||| \\||  \\|"
+FONT[O]=" ___ / _ \\||   |||   |\\___/"
+FONT[P]=" __ |  _||__/ |   |    "
+FONT[Q]=" ___ / _ \\||   ||| \\_|\\__\\_|"
+FONT[R]=" __ |  _)||__/ |  \\||   \\"
+FONT[S]=" ___ / __| \\__ | __/ \\___|"
+FONT[T]="_____|  |  |  |  |  |  |  "
+FONT[U]="     |   ||   ||   | \\__/ "
+FONT[V]="     |   ||   | \\ / | \\_/ |  V  "
+FONT[W]="      |   ||   ||_/\\||/ \\ |"
+FONT[X]="     \\ \\/ / >  < / /\\ \\"
+FONT[Y]="     \\ / | V | |   |   "
+FONT[Z]="_____|   / /  / /   |_____|"
+FONT[0]=" ___ |/  \\|| / |||\\  ||\\___/"
+FONT[1]="  _  /| | | | |___|"
+FONT[2]=" ___   / |/  / /   _____|"
+FONT[3]=" ___   / | __/   / |___ "
+FONT[4]="     |  /||___|   / |    "
+FONT[5]=" ___ |___  \\___   / |___ "
+FONT[6]="  __ / __ |___||   | \\__/ "
+FONT[7]="_____|   /  /  /  /   "
+FONT[8]=" ___ | _ || _ ||   | \\__/ "
+FONT[9]=" ___ |   | \\__|   / |__/ "
+FONT[' ']="     |    |    |    |    "
+FONT[!]="  |  |  |    |  "
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: banner TEXT"; exit 0; }
+
+   local TEXT="${*:-HELLO}"
+   TEXT="${TEXT^^}"
+
+   # simple approach: print each character's lines side by side
+   local ROW
+   for ROW in 0 1 2 3 4; do
+      local I=0
+      while (( I < ${#TEXT} )); do
+         local CH="${TEXT:$I:1}"
+         local GLYPH="${FONT[$CH]:-${FONT[' ']}}"
+         # extract row from pipe-separated glyph
+         local -a PARTS
+         IFS='|' read -ra PARTS <<< "$GLYPH"
+         echo -n "${PARTS[$ROW]:-     }"
+         (( I++ ))
+      done
+      echo
+   done
+}
+
+main "$@"

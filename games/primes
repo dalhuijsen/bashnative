@@ -1,0 +1,32 @@
+#!/bin/bash
+# bashnative/primes - generate prime numbers
+
+main () {
+   [[ "$1" == "--help" ]] && { echo "Usage: primes [START [END]]"; exit 0; }
+
+   local START="${1:-2}"
+   local END="${2:-1000}"
+
+   local N=$START
+   while (( N <= END )); do
+      if is_prime "$N"; then
+         echo "$N"
+      fi
+      (( N++ ))
+   done
+}
+
+is_prime () {
+   local N=$1
+   (( N < 2 )) && return 1
+   (( N < 4 )) && return 0
+   (( N % 2 == 0 )) && return 1
+   local I=3
+   while (( I * I <= N )); do
+      (( N % I == 0 )) && return 1
+      (( I += 2 ))
+   done
+   return 0
+}
+
+main "$@"
