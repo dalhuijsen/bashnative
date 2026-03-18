@@ -31,7 +31,9 @@ _FS_METHOD=
 
 _fs_init () {
    # 1. is 'fs' already a builtin? (patched bashnative bash)
-   if builtin fs mkdir --help >/dev/null 2>&1; then
+   #    probe with a harmless mkdir that will fail (missing arg) - we just
+   #    check that 'builtin fs' is recognized, not that it succeeds.
+   if builtin fs 2>/dev/null; [ $? -eq 2 ]; then
       _FS_METHOD=builtin
       return 0
    fi
