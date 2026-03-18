@@ -10,13 +10,13 @@ main () {
       exit 0
    fi
 
-   # slurp file into array
-   local -a LINES
+   # slurp file into array (BUF, not LINES -- $LINES is terminal rows!)
+   local -a BUF
    while IFS= read -r LINE; do
-      LINES+=("$LINE")
+      BUF+=("$LINE")
    done < "${1:-/dev/stdin}"
 
-   local TOTAL=${#LINES[@]}
+   local TOTAL=${#BUF[@]}
    local TOP=0
    local ROWS="${LINES:-24}"
    local COLS="${COLUMNS:-80}"
@@ -41,7 +41,7 @@ main () {
          local LINENUM=$(( TOP + I ))
          echo -ne "\e[$(( I + 1 ));1H\e[K"
          if (( LINENUM < TOTAL )); then
-            echo -n "${LINES[$LINENUM]}"
+            echo -n "${BUF[$LINENUM]}"
          else
             echo -n "~"
          fi
@@ -92,7 +92,7 @@ main () {
             # find next match
             local S=$(( TOP + 1 ))
             while (( S < TOTAL )); do
-               if [[ "${LINES[$S]}" =~ $SEARCHPAT ]]; then
+               if [[ "${BUF[$S]}" =~ $SEARCHPAT ]]; then
                   TOP=$S
                   break
                fi
@@ -104,7 +104,7 @@ main () {
             if [[ -n "$SEARCHPAT" ]]; then
                local S=$(( TOP + 1 ))
                while (( S < TOTAL )); do
-                  if [[ "${LINES[$S]}" =~ $SEARCHPAT ]]; then
+                  if [[ "${BUF[$S]}" =~ $SEARCHPAT ]]; then
                      TOP=$S
                      break
                   fi
