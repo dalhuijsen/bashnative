@@ -1,0 +1,86 @@
+#!/bin/bash
+# bashnative/mkdir - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Uses the bashnative 'mk' function/builtin.
+# See function/mk for the three-pronged fallback logic.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/mk" || exit 1
+
+MODE=
+PFLAG=
+DIRS=()
+
+main () {
+   if [[ -z "$1" ]]; then
+      helpmsg
+      exit 1
+   fi
+
+   parse_args "$@"
+
+   for D in "${DIRS[@]}"; do
+      if [[ -n "$PFLAG" ]]; then
+         if [[ -n "$MODE" ]]; then
+            mk dir -p "$D" "$MODE"
+         else
+            mk dir -p "$D"
+         fi
+      else
+         if [[ -n "$MODE" ]]; then
+            mk dir "$D" "$MODE"
+         else
+            mk dir "$D"
+         fi
+      fi
+      if [[ $? -ne 0 ]]; then
+         exit 1
+      fi
+   done
+}
+
+parse_args () {
+   while [[ -n "$1" ]]; do
+      case "$1" in
+         --help|-h)
+            helpmsg
+            exit 0
+            ;;
+         -p|--parents)
+            PFLAG=1
+            ;;
+         -m|--mode)
+            shift
+            MODE="$1"
+            ;;
+         --mode=*)
+            MODE="${1#*=}"
+            ;;
+         -*)
+            echo "mkdir: invalid option -- '${1#-}'" >&2
+            exit 1
+            ;;
+         *)
+            DIRS+=("$1")
+            ;;
+      esac
+      shift
+   done
+}
+
+helpmsg () {
+echo "Usage: mkdir [OPTION]... DIRECTORY...
+Create the DIRECTORY(ies), if they do not already exist.
+
+  -m, --mode=MODE   set file mode (as in chmod), not a=rwx - umask
+  -p, --parents     no error if existing, make parent directories as needed
+  -h, --help        display this help and exit
+
+Powered by the bashnative 'mk' builtin. See build/build-bash.sh
+"
+}
+
+main "$@"

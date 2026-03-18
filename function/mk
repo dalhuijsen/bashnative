@@ -1,0 +1,125 @@
+# bashnative/mk - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# @Usage:  source this, then call: mk dir PATH; mk fifo PATH; mk nod PATH ...
+# @Depends: none (degrades gracefully)
+#
+# Three-pronged approach to get mkdir(2)/mkfifo(3)/mknod(2) syscalls:
+#  1. 'mk' builtin     - patched bashnative bash (best: zero overhead)
+#  2. enable -f         - stock bash + compiled loadable (good: no fork per call)
+#  3. external binaries - /usr/bin/mkdir etc (works everywhere, but forks)
+#
+# After sourcing, 'mk' is guaranteed to be a callable function/builtin,
+# or we die trying.
+
+# -- probe once, use forever ------------------------------------------------
+
+_MK_METHOD=
+
+_mk_init () {
+   # 1. is 'mk' already a builtin? (patched bashnative bash)
+   if builtin mk dir --help >/dev/null 2>&1; then
+      _MK_METHOD=builtin
+      return 0
+   fi
+
+   # 2. try enable -f from common loadable paths
+   local LOADABLE_PATHS=(
+      "${BASH_LOADABLES_PATH}"
+      /usr/lib/bash
+      /usr/local/lib/bash
+      /opt/homebrew/lib/bash
+      /usr/lib64/bash
+      /usr/local/lib/bash/mk
+   )
+   local P
+   for P in "${LOADABLE_PATHS[@]}"; do
+      [[ -z "$P" ]] && continue
+      # the loadable may be named 'mk' or 'mk.so' or 'mk.dylib'
+      for EXT in "" ".so" ".dylib"; do
+         if [[ -f "${P}/mk${EXT}" ]]; then
+            if enable -f "${P}/mk${EXT}" mk 2>/dev/null; then
+               _MK_METHOD=loadable
+               return 0
+            fi
+         fi
+      done
+   done
+
+   # 3. fall back to external binaries
+   #    wrap them behind a mk() function so callers don't need to care
+   if type mkdir >/dev/null 2>&1; then
+      _MK_METHOD=external
+      return 0
+   fi
+
+   # nothing works
+   echo "mk: FATAL: no method available to create directories/fifos/nodes." >&2
+   echo "mk: Either run under bashnative's patched bash, compile the loadable," >&2
+   echo "mk: or ensure mkdir/mkfifo/mknod are in PATH." >&2
+   echo "mk: See build/build-bash.sh" >&2
+   return 1
+}
+
+# -- the wrapper (only used for external fallback) ---------------------------
+
+if ! type mk >/dev/null 2>&1; then
+   # mk is not yet defined (not a builtin, not loaded); we'll need the wrapper
+   mk () {
+      case "$1" in
+         dir)
+            shift
+            # translate mk dir [-p] PATH [MODE] -> mkdir [-p] [-m MODE] PATH
+            local ARGS=()
+            local MODE= PFLAG=
+            while [[ -n "$1" ]]; do
+               case "$1" in
+                  -p) PFLAG=1 ;;
+                  *)
+                     if [[ -z "${ARGS[*]}" ]]; then
+                        ARGS+=("$1")
+                     else
+                        MODE="$1"  # second positional = mode
+                     fi
+                     ;;
+               esac
+               shift
+            done
+            local CMD=(mkdir)
+            [[ -n "$PFLAG" ]] && CMD+=(-p)
+            [[ -n "$MODE" ]] && CMD+=(-m "$MODE")
+            CMD+=("${ARGS[@]}")
+            "${CMD[@]}"
+            ;;
+         fifo)
+            shift
+            local NAME="$1" MODE="$2"
+            if [[ -n "$MODE" ]]; then
+               mkfifo -m "$MODE" "$NAME"
+            else
+               mkfifo "$NAME"
+            fi
+            ;;
+         nod)
+            shift
+            # mk nod PATH TYPE MAJOR MINOR [MODE]
+            local NAME="$1" TYPE="$2" MAJOR="$3" MINOR="$4" MODE="$5"
+            if [[ -n "$MODE" ]]; then
+               mknod -m "$MODE" "$NAME" "$TYPE" "$MAJOR" "$MINOR"
+            else
+               mknod "$NAME" "$TYPE" "$MAJOR" "$MINOR"
+            fi
+            ;;
+         *)
+            echo "mk: unknown type '$1' (use dir, fifo, or nod)" >&2
+            return 1
+            ;;
+      esac
+   }
+fi
+
+# -- init on source ----------------------------------------------------------
+
+_mk_init || return 1

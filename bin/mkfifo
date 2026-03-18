@@ -1,0 +1,73 @@
+#!/bin/bash
+# bashnative/mkfifo - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Uses the bashnative 'mk' function/builtin.
+# See function/mk for the three-pronged fallback logic.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/mk" || exit 1
+
+MODE=
+NAMES=()
+
+main () {
+   if [[ -z "$1" ]]; then
+      helpmsg
+      exit 1
+   fi
+
+   parse_args "$@"
+
+   for N in "${NAMES[@]}"; do
+      if [[ -n "$MODE" ]]; then
+         mk fifo "$N" "$MODE"
+      else
+         mk fifo "$N"
+      fi
+      if [[ $? -ne 0 ]]; then
+         exit 1
+      fi
+   done
+}
+
+parse_args () {
+   while [[ -n "$1" ]]; do
+      case "$1" in
+         --help|-h)
+            helpmsg
+            exit 0
+            ;;
+         -m|--mode)
+            shift
+            MODE="$1"
+            ;;
+         --mode=*)
+            MODE="${1#*=}"
+            ;;
+         -*)
+            echo "mkfifo: invalid option -- '${1#-}'" >&2
+            exit 1
+            ;;
+         *)
+            NAMES+=("$1")
+            ;;
+      esac
+      shift
+   done
+}
+
+helpmsg () {
+echo "Usage: mkfifo [OPTION]... NAME...
+Create named pipes (FIFOs) with the given NAMEs.
+
+  -m, --mode=MODE   set file permission bits to MODE, not a=rw - umask
+  -h, --help        display this help and exit
+
+Powered by the bashnative 'mk' builtin. See build/build-bash.sh
+"
+}
+
+main "$@"

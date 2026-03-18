@@ -1,0 +1,101 @@
+#!/bin/bash
+# bashnative/mknod - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Uses the bashnative 'mk' function/builtin.
+# See function/mk for the three-pronged fallback logic.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/mk" || exit 1
+
+MODE=
+
+main () {
+   if [[ -z "$1" ]]; then
+      helpmsg
+      exit 1
+   fi
+
+   X=0
+   while (( X++ < ${#} )); do
+      case "${!X}" in
+         --help|-h)
+            helpmsg
+            exit 0
+            ;;
+         -m|--mode)
+            X=$(( X + 1 ))
+            MODE="${!X}"
+            ;;
+         --mode=*)
+            MODE="${!X#*=}"
+            ;;
+         *)
+            break
+            ;;
+      esac
+   done
+
+   # mknod NAME TYPE [MAJOR MINOR]
+   NAME="${!X}"
+   X=$(( X + 1 ))
+   TYPE="${!X}"
+
+   if [[ -z "$NAME" ]] || [[ -z "$TYPE" ]]; then
+      helpmsg
+      exit 1
+   fi
+
+   case "$TYPE" in
+      b|c)
+         X=$(( X + 1 ))
+         MAJOR="${!X}"
+         X=$(( X + 1 ))
+         MINOR="${!X}"
+         if [[ -z "$MAJOR" ]] || [[ -z "$MINOR" ]]; then
+            echo "mknod: missing major/minor for block/char device" >&2
+            exit 1
+         fi
+         if [[ -n "$MODE" ]]; then
+            mk nod "$NAME" "$TYPE" "$MAJOR" "$MINOR" "$MODE"
+         else
+            mk nod "$NAME" "$TYPE" "$MAJOR" "$MINOR"
+         fi
+         ;;
+      p)
+         # FIFO via mknod - no major/minor needed
+         if [[ -n "$MODE" ]]; then
+            mk nod "$NAME" p 0 0 "$MODE"
+         else
+            mk nod "$NAME" p 0 0
+         fi
+         ;;
+      *)
+         echo "mknod: invalid type '$TYPE' (use b, c, or p)" >&2
+         exit 1
+         ;;
+   esac
+}
+
+helpmsg () {
+echo "Usage: mknod [OPTION]... NAME TYPE [MAJOR MINOR]
+Create special files (block/char devices, FIFOs).
+
+  -m, --mode=MODE   set file permission bits to MODE
+  -h, --help        display this help and exit
+
+TYPE may be:
+  b      create a block (buffered) special file
+  c      create a character (unbuffered) special file
+  p      create a FIFO
+
+MAJOR and MINOR are required for b and c types.
+Note: creating device nodes (b/c) typically requires root.
+
+Powered by the bashnative 'mk' builtin. See build/build-bash.sh
+"
+}
+
+main "$@"
