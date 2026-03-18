@@ -1,19 +1,164 @@
-#!/bin/bash 
+#!/bin/bash
+# bashnative/ls - Copyright 2012 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+AFLAG=0
+LFLAG=0
+ONEFLAG=0
+
 main () {
-if [[ -z "$1" ]]; then 
-printdir
-exit
-fi
-while [[ -n "$1" ]]; do
-pushd "$1"
-printdir
-popd
-shift
-done
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -a|--all)   AFLAG=1 ;;
+         -l)         LFLAG=1 ;;
+         -1)         ONEFLAG=1 ;;
+         -la|-al)    AFLAG=1; LFLAG=1 ;;
+         --help|-h)  helpmsg; exit 0 ;;
+         --)         shift; break ;;
+         *)          break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      ls_dir "."
+   else
+      local MULTI=$(( $# > 1 ))
+      for TARGET in "$@"; do
+         if (( MULTI )); then
+            echo "${TARGET}:"
+         fi
+         if [[ -d "$TARGET" ]]; then
+            ls_dir "$TARGET"
+         elif [[ -e "$TARGET" ]]; then
+            ls_entry "$TARGET"
+         else
+            echo "ls: cannot access '${TARGET}': No such file or directory" >&2
+         fi
+         if (( MULTI )); then
+            echo
+         fi
+      done
+   fi
 }
-printdir () {
-for x in $(echo {.,}*); do
-echo "$x"
-done
+
+ls_dir () {
+   local DIR="$1"
+   local -a ENTRIES
+
+   # collect entries
+   for ITEM in "$DIR"/*; do
+      [[ -e "$ITEM" ]] || continue
+      ENTRIES+=("$ITEM")
+   done
+
+   # hidden files
+   if (( AFLAG )); then
+      for ITEM in "$DIR"/.*; do
+         case "${ITEM##*/}" in
+            .|..) (( AFLAG )) && ENTRIES+=("$ITEM") ;;
+            *)    ENTRIES+=("$ITEM") ;;
+         esac
+      done
+   fi
+
+   # sort entries by basename
+   local -a SORTED
+   SORTED=($(for E in "${ENTRIES[@]}"; do echo "$E"; done | sort))
+
+   if (( LFLAG )); then
+      for ITEM in "${SORTED[@]}"; do
+         ls_long "$ITEM"
+      done
+   elif (( ONEFLAG )) || [[ ! -t 1 ]]; then
+      # one per line (or piped)
+      for ITEM in "${SORTED[@]}"; do
+         echo "${ITEM##*/}"
+      done
+   else
+      ls_columns "${SORTED[@]}"
+   fi
 }
+
+ls_entry () {
+   if (( LFLAG )); then
+      ls_long "$1"
+   else
+      echo "${1##*/}"
+   fi
+}
+
+ls_long () {
+   local ITEM="$1"
+   local NAME="${ITEM##*/}"
+
+   # type indicator
+   local TYPE="-"
+   [[ -d "$ITEM" ]] && TYPE="d"
+   [[ -L "$ITEM" ]] && TYPE="l"
+   [[ -p "$ITEM" ]] && TYPE="p"
+
+   # permissions (best effort from test operators)
+   local PERMS=""
+   [[ -r "$ITEM" ]] && PERMS="${PERMS}r" || PERMS="${PERMS}-"
+   [[ -w "$ITEM" ]] && PERMS="${PERMS}w" || PERMS="${PERMS}-"
+   [[ -x "$ITEM" ]] && PERMS="${PERMS}x" || PERMS="${PERMS}-"
+
+   # size (text length for files)
+   local SIZE=0
+   if [[ -f "$ITEM" ]] && [[ -r "$ITEM" ]]; then
+      local CONTENT="$(<"$ITEM" 2>/dev/null)"
+      SIZE=${#CONTENT}
+   fi
+
+   printf "%s%s %5d %s\n" "$TYPE" "${PERMS}${PERMS}${PERMS}" "$SIZE" "$NAME"
+}
+
+ls_columns () {
+   # print entries in columns, like real ls
+   local -a NAMES
+   for ITEM in "$@"; do
+      NAMES+=("${ITEM##*/}")
+   done
+
+   local COUNT=${#NAMES[@]}
+   if (( COUNT == 0 )); then
+      return
+   fi
+
+   # find widest entry
+   local MAXW=0
+   for NAME in "${NAMES[@]}"; do
+      (( ${#NAME} > MAXW )) && MAXW=${#NAME}
+   done
+   MAXW=$(( MAXW + 2 ))   # padding
+
+   local COLS="${COLUMNS:-80}"
+   local NCOLS=$(( COLS / MAXW ))
+   (( NCOLS < 1 )) && NCOLS=1
+
+   local I=0
+   for NAME in "${NAMES[@]}"; do
+      printf "%-${MAXW}s" "$NAME"
+      (( I++ ))
+      if (( I % NCOLS == 0 )); then
+         echo
+      fi
+   done
+   (( I % NCOLS != 0 )) && echo
+}
+
+helpmsg () {
+echo "Usage: ls [OPTION]... [FILE]...
+List directory contents.
+
+  -a, --all   show hidden files (starting with .)
+  -l          use long listing format
+  -1          list one file per line
+  -h, --help  display this help and exit
+"
+}
+
 main "$@"
