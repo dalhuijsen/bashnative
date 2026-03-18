@@ -1,14 +1,14 @@
 #!/bin/bash
 # bashnative/split - split a file into pieces
 
-LINES=1000
+MAXLINES=1000
 PREFIX="x"
 
 main () {
    while [[ "${1:0:1}" == "-" ]]; do
       case "$1" in
-         -l) shift; LINES="$1" ;;
-         --help|-h) echo "Usage: split [-l LINES] [FILE [PREFIX]]"; exit 0 ;;
+         -l) shift; MAXLINES="$1" ;;
+         --help|-h) echo "Usage: split [-l MAXLINES] [FILE [PREFIX]]"; exit 0 ;;
          --) shift; break ;;
          *) break ;;
       esac
@@ -34,7 +34,7 @@ main () {
 
 split_stream () {
    while IFS= read -r LINE; do
-      if (( LINECOUNT >= LINES )); then
+      if (( LINECOUNT >= MAXLINES )); then
          exec 3>&-
          (( PARTNUM++ ))
          SUFFIX=$(part_suffix $PARTNUM)

@@ -9,24 +9,24 @@ main () {
    fi
 
    # slurp lines
-   local -a LINES
+   local -a BUF
    while IFS= read -r LINE; do
-      LINES+=("$LINE")
+      BUF+=("$LINE")
    done < "${1:-/dev/stdin}"
 
    # Fisher-Yates shuffle using $RANDOM
-   local N=${#LINES[@]}
+   local N=${#BUF[@]}
    local I=$N
    while (( I > 1 )); do
       (( I-- ))
       local J=$(( RANDOM % (I + 1) ))
       # swap
-      local TMP="${LINES[$I]}"
-      LINES[$I]="${LINES[$J]}"
-      LINES[$J]="$TMP"
+      local TMP="${BUF[$I]}"
+      BUF[$I]="${BUF[$J]}"
+      BUF[$J]="$TMP"
    done
 
-   for LINE in "${LINES[@]}"; do
+   for LINE in "${BUF[@]}"; do
       echo "$LINE"
    done
 }

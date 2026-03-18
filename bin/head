@@ -4,15 +4,15 @@
 # (GPLv3) as published by the Free Software Foundation.
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
-LINES=10
+NUMLINES=10
 
 main () {
    # parse -n NUM or -NUM
    while [[ "${1:0:1}" == "-" ]]; do
       case "$1" in
-         -n) shift; LINES="$1" ;;
+         -n) shift; NUMLINES="$1" ;;
          --help|-h) helpmsg; exit 0 ;;
-         -[0-9]*) LINES="${1#-}" ;;
+         -[0-9]*) NUMLINES="${1#-}" ;;
          --) shift; break ;;
          *) break ;;
       esac
@@ -38,7 +38,7 @@ main () {
 
 head_stream () {
    local N=0
-   while (( N++ < LINES )) && IFS= read -r LINE; do
+   while (( N++ < NUMLINES )) && IFS= read -r LINE; do
       echo "$LINE"
    done
 }

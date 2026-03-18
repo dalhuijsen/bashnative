@@ -22,13 +22,13 @@ main () {
 }
 
 tac_stream () {
-   local -a LINES
+   local -a BUF
    while IFS= read -r LINE; do
-      LINES+=("$LINE")
+      BUF+=("$LINE")
    done
-   local I=${#LINES[@]}
+   local I=${#BUF[@]}
    while (( I-- > 0 )); do
-      echo "${LINES[$I]}"
+      echo "${BUF[$I]}"
    done
 }
 

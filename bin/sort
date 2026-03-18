@@ -25,12 +25,12 @@ main () {
    done
 
    # slurp all lines into an array
-   local -a LINES
+   local -a BUF
    while IFS= read -r LINE; do
-      LINES+=("$LINE")
+      BUF+=("$LINE")
    done < "${1:-/dev/stdin}"
 
-   local LEN=${#LINES[@]}
+   local LEN=${#BUF[@]}
 
    # bubble sort -- yes, O(n²), this is bash ;)
    local I=0
@@ -40,8 +40,8 @@ main () {
          local SWAP=0
          if (( NFLAG )); then
             # numeric comparison
-            local A="${LINES[$I]%%[!0-9-]*}"
-            local B="${LINES[$J]%%[!0-9-]*}"
+            local A="${BUF[$I]%%[!0-9-]*}"
+            local B="${BUF[$J]%%[!0-9-]*}"
             A="${A:-0}"
             B="${B:-0}"
             if (( RFLAG )); then
@@ -52,16 +52,16 @@ main () {
          else
             # lexicographic
             if (( RFLAG )); then
-               [[ "${LINES[$I]}" < "${LINES[$J]}" ]] && SWAP=1
+               [[ "${BUF[$I]}" < "${BUF[$J]}" ]] && SWAP=1
             else
-               [[ "${LINES[$I]}" > "${LINES[$J]}" ]] && SWAP=1
+               [[ "${BUF[$I]}" > "${BUF[$J]}" ]] && SWAP=1
             fi
          fi
 
          if (( SWAP )); then
-            local TMP="${LINES[$I]}"
-            LINES[$I]="${LINES[$J]}"
-            LINES[$J]="$TMP"
+            local TMP="${BUF[$I]}"
+            BUF[$I]="${BUF[$J]}"
+            BUF[$J]="$TMP"
          fi
          (( J++ ))
       done
@@ -70,7 +70,7 @@ main () {
 
    # output (with optional -u dedup)
    local PREV=""
-   for LINE in "${LINES[@]}"; do
+   for LINE in "${BUF[@]}"; do
       if (( UFLAG )) && [[ "$LINE" == "$PREV" ]]; then
          continue
       fi
