@@ -1,0 +1,72 @@
+#!/bin/bash
+# bashnative/ps - report process status
+# Walks /proc/[0-9]*/ to gather process info (Linux only)
+
+main () {
+   if [[ ! -d /proc/1 ]]; then
+      echo "ps: /proc not available" >&2
+      exit 1
+   fi
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: ps [-e] [-f]"
+      exit 0
+   fi
+
+   local ALLFLAG=0 FULLFLAG=0
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -e|-A) ALLFLAG=1 ;;
+         -f)    FULLFLAG=1 ;;
+         -ef|-fe) ALLFLAG=1; FULLFLAG=1 ;;
+      esac
+      shift
+   done
+
+   if (( FULLFLAG )); then
+      printf "%-8s %5s %5s %s\n" "UID" "PID" "PPID" "CMD"
+   else
+      printf "%5s %s\n" "PID" "CMD"
+   fi
+
+   for PROCDIR in /proc/[0-9]*; do
+      [[ -d "$PROCDIR" ]] || continue
+      local PID="${PROCDIR##*/}"
+
+      # skip other users' processes unless -e
+      if (( ! ALLFLAG )); then
+         # check if we own this process (can we read cmdline?)
+         [[ -r "${PROCDIR}/cmdline" ]] || continue
+      fi
+
+      # get command name
+      local CMD=""
+      if [[ -r "${PROCDIR}/cmdline" ]]; then
+         CMD="$(< "${PROCDIR}/cmdline")"
+         # cmdline uses null bytes as separators
+         CMD="${CMD//$'\0'/ }"
+      fi
+      if [[ -z "$CMD" ]] && [[ -r "${PROCDIR}/comm" ]]; then
+         CMD="[$(< "${PROCDIR}/comm")]"
+      fi
+      [[ -z "$CMD" ]] && CMD="[unknown]"
+
+      if (( FULLFLAG )); then
+         # get ppid and uid from /proc/PID/status
+         local UID_N="" PARENT=""
+         if [[ -r "${PROCDIR}/status" ]]; then
+            while IFS=$':\t' read -r KEY VAL; do
+               case "$KEY" in
+                  Uid) UID_N="${VAL%%[[:space:]]*}" ;;
+                  PPid) PARENT="${VAL##*[[:space:]]}" ;;
+               esac
+            done < "${PROCDIR}/status"
+         fi
+         printf "%-8s %5s %5s %s\n" "${UID_N:-?}" "$PID" "${PARENT:-?}" "$CMD"
+      else
+         printf "%5s %s\n" "$PID" "$CMD"
+      fi
+   done
+}
+
+main "$@"

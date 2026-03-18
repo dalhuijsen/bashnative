@@ -1,0 +1,83 @@
+#!/bin/bash
+# bashnative/cal - display a calendar
+# Uses printf %(...)T for date calculations (bash 4.2+)
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: cal [MONTH YEAR]"
+      exit 0
+   fi
+
+   local MONTH YEAR
+
+   if [[ -n "$2" ]]; then
+      MONTH="$1"
+      YEAR="$2"
+   elif [[ -n "$1" ]]; then
+      YEAR="$1"
+      printf -v MONTH '%(%m)T' -1
+   else
+      printf -v MONTH '%(%m)T' -1
+      printf -v YEAR '%(%Y)T' -1
+   fi
+
+   # strip leading zero
+   MONTH="${MONTH#0}"
+
+   local MNAMES=(x January February March April May June July August September October November December)
+
+   echo "   ${MNAMES[$MONTH]} ${YEAR}"
+   echo "Su Mo Tu We Th Fr Sa"
+
+   # find day of week for 1st of month using Zeller-ish via bash
+   # day 0=Sun, 1=Mon, ...
+   # We use a known epoch reference and count days
+   # Reference: 1970-01-01 was Thursday (4)
+   local DOW
+   DOW=$(day_of_week "$YEAR" "$MONTH" 1)
+
+   # days in month
+   local DIM
+   DIM=$(days_in_month "$MONTH" "$YEAR")
+
+   # print leading spaces
+   local I=0
+   while (( I < DOW )); do
+      printf "   "
+      (( I++ ))
+   done
+
+   # print days
+   local DAY=1
+   while (( DAY <= DIM )); do
+      printf "%2d " "$DAY"
+      (( DOW++ ))
+      if (( DOW % 7 == 0 )); then
+         echo
+      fi
+      (( DAY++ ))
+   done
+   (( DOW % 7 != 0 )) && echo
+}
+
+day_of_week () {
+   # Tomohiko Sakamoto's algorithm
+   local Y="$1" M="$2" D="$3"
+   local -a T=(0 3 2 5 0 3 5 1 4 6 2 4)
+   (( M < 3 )) && (( Y-- ))
+   echo $(( (Y + Y/4 - Y/100 + Y/400 + T[M-1] + D) % 7 ))
+}
+
+days_in_month () {
+   local M="$1" Y="$2"
+   local -a DAYS=(0 31 28 31 30 31 30 31 31 30 31 30 31)
+   if (( M == 2 )); then
+      if (( Y % 4 == 0 && (Y % 100 != 0 || Y % 400 == 0) )); then
+         echo 29
+         return
+      fi
+   fi
+   echo "${DAYS[$M]}"
+}
+
+main "$@"

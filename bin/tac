@@ -1,0 +1,35 @@
+#!/bin/bash
+# bashnative/tac - concatenate and print files in reverse
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: tac [FILE]..."
+      echo "Write each FILE to stdout, last line first."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]]; then
+      tac_stream
+   else
+      for FILE in "$@"; do
+         if [[ ! -r "$FILE" ]]; then
+            echo "tac: ${FILE}: No such file or directory" >&2
+         else
+            tac_stream < "$FILE"
+         fi
+      done
+   fi
+}
+
+tac_stream () {
+   local -a LINES
+   while IFS= read -r LINE; do
+      LINES+=("$LINE")
+   done
+   local I=${#LINES[@]}
+   while (( I-- > 0 )); do
+      echo "${LINES[$I]}"
+   done
+}
+
+main "$@"

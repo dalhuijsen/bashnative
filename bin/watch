@@ -1,0 +1,30 @@
+#!/bin/bash
+# bashnative/watch - execute a program periodically, showing output fullscreen
+
+INTERVAL=2
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -n) shift; INTERVAL="$1" ;;
+         --help|-h) echo "Usage: watch [-n SEC] COMMAND"; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      echo "watch: missing command" >&2
+      exit 1
+   fi
+
+   while true; do
+      echo -ne '\e[H\e[J'   # clear screen
+      printf "Every %ds: %s\t%(%c)T\n\n" "$INTERVAL" "$*" -1
+      eval "$@" 2>&1
+      read -t "$INTERVAL" < <(:) 2>/dev/null || true
+   done
+}
+
+main "$@"

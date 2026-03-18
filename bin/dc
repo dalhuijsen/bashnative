@@ -1,0 +1,62 @@
+#!/bin/bash
+# bashnative/dc - reverse-polish desk calculator
+# Integer only, like everything else in bash ;)
+
+STACK=()
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: dc"
+      echo "Reverse-polish calculator. Commands: + - * / % p q"
+      exit 0
+   fi
+
+   while read -r LINE; do
+      for TOKEN in $LINE; do
+         dc_eval "$TOKEN"
+      done
+   done
+}
+
+dc_eval () {
+   local T="$1"
+   case "$T" in
+      [0-9]*|-[0-9]*)
+         STACK+=("$T")
+         ;;
+      +|-|\*|/|%)
+         if (( ${#STACK[@]} < 2 )); then
+            echo "dc: stack underflow" >&2
+            return
+         fi
+         local B="${STACK[-1]}" A="${STACK[-2]}"
+         unset 'STACK[-1]' 'STACK[-2]'
+         STACK=("${STACK[@]}")
+         case "$T" in
+            +) STACK+=("$(( A + B ))") ;;
+            -) STACK+=("$(( A - B ))") ;;
+            '*') STACK+=("$(( A * B ))") ;;  # note: * is escaped
+            /) STACK+=("$(( A / B ))") ;;
+            %) STACK+=("$(( A % B ))") ;;
+         esac
+         ;;
+      p)
+         if (( ${#STACK[@]} > 0 )); then
+            echo "${STACK[-1]}"
+         fi
+         ;;
+      f)
+         local I=${#STACK[@]}
+         while (( I-- > 0 )); do
+            echo "${STACK[$I]}"
+         done
+         ;;
+      c) STACK=() ;;
+      q) exit 0 ;;
+      *)
+         echo "dc: unknown: $T" >&2
+         ;;
+   esac
+}
+
+main "$@"

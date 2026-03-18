@@ -1,0 +1,30 @@
+#!/bin/bash
+# bashnative/truncate - shrink or extend the size of a file
+# Can only truncate to zero in pure bash (redirect trick)
+
+main () {
+   local SIZE= FILE=
+
+   while [[ -n "$1" ]]; do
+      case "$1" in
+         -s) shift; SIZE="$1" ;;
+         --help|-h) echo "Usage: truncate -s SIZE FILE"; echo "Note: only SIZE=0 supported in pure bash."; exit 0 ;;
+         *) FILE="$1" ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$FILE" ]]; then
+      echo "truncate: missing file operand" >&2
+      exit 1
+   fi
+
+   if [[ "$SIZE" == "0" ]] || [[ -z "$SIZE" ]]; then
+      : > "$FILE"   # THE ENGINE
+   else
+      echo "truncate: only -s 0 supported in pure bash" >&2
+      exit 1
+   fi
+}
+
+main "$@"

@@ -106,6 +106,37 @@ run_tests () {
       check "date"              "test -n \"\$(date)\""
       check "xargs"             "echo hello | xargs echo | grep -q hello"
 
+      # new batch: quick wins
+      check "tac"               "printf \"a\nb\nc\n\" | tac | head -n 1 | grep -q c"
+      check "shuf"              "printf \"a\nb\nc\n\" | shuf | wc -l | grep -q 3"
+      check "factor"            "factor 12 | grep -q \"2 2 3\""
+      check "hostid"            "test -n \"\$(hostid)\""
+      check "truncate"          "echo data > /tmp/bntest/trunc && truncate -s 0 /tmp/bntest/trunc && test ! -s /tmp/bntest/trunc"
+      check "time"              "/bin/time true 2>&1 | grep -q real"
+      check "link"              "touch /tmp/bntest/linktest && link /tmp/bntest/linktest /tmp/bntest/linktest2"
+      check "unlink"            "unlink /tmp/bntest/linktest2"
+
+      # /proc tools
+      check "free"              "free | grep -q Mem"
+      check "ps"                "ps | grep -q PID"
+      check "ps -ef"            "ps -ef | grep -q bash"
+      check "pidof bash"        "test -n \"\$(pidof bash)\""
+      check "pgrep bash"        "pgrep bash | grep -q [0-9]"
+      check "df"                "df | grep -q Filesystem"
+      check "netstat"           "netstat | grep -q Proto"
+
+      # text tools
+      check "cmp same"          "echo x > /tmp/bntest/c1 && echo x > /tmp/bntest/c2 && cmp /tmp/bntest/c1 /tmp/bntest/c2"
+      check "cmp diff"          "echo x > /tmp/bntest/c1 && echo y > /tmp/bntest/c2 && ! cmp /tmp/bntest/c1 /tmp/bntest/c2"
+      check "diff same"         "echo x > /tmp/bntest/d1 && echo x > /tmp/bntest/d2 && diff /tmp/bntest/d1 /tmp/bntest/d2"
+      check "tree"              "tree /tmp/bntest | grep -q directories"
+      check "cal"               "cal | grep -q Su"
+      check "bc"                "echo \"2+3\" | bc | grep -q 5"
+      check "dc"                "echo \"3 4 + p\" | dc | grep -q 7"
+      check "sed subst"         "echo hello | sed s/hello/world/ | grep -q world"
+      check "sed global"        "echo aaa | sed s/a/b/g | grep -q bbb"
+      check "sed delete"        "printf \"keep\ndrop\n\" | sed /drop/d | grep -q keep"
+
       echo
       echo "=== Results: $PASS passed, $FAIL failed ==="
       (( FAIL == 0 )) && exit 0 || exit 1

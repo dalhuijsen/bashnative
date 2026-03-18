@@ -1,0 +1,68 @@
+#!/bin/bash
+# bashnative/whois - client for the whois directory service
+# TCP connection to port 43 via /dev/tcp
+
+main () {
+   local SERVER="whois.iana.org"
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: whois [-h SERVER] QUERY"
+      exit 0
+   fi
+
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -h) shift; SERVER="$1" ;;
+      esac
+      shift
+   done
+
+   local QUERY="$1"
+
+   if [[ -z "$QUERY" ]]; then
+      echo "whois: missing query" >&2
+      exit 1
+   fi
+
+   exec 3<>/dev/tcp/${SERVER}/43 2>/dev/null
+   if [[ $? -ne 0 ]]; then
+      echo "whois: connect to ${SERVER}:43 failed" >&2
+      exit 1
+   fi
+
+   echo "$QUERY" >&3
+
+   # check if response refers us to another server
+   local REFER=""
+   while IFS= read -r LINE <&3; do
+      echo "$LINE"
+      # look for referral
+      if [[ "$LINE" == *"refer:"* ]] || [[ "$LINE" == *"whois:"* ]]; then
+         REFER="${LINE##* }"
+         REFER="${REFER%%[[:space:]]*}"
+      fi
+   done
+
+   exec 3>&-
+
+   # follow referral if found
+   if [[ -n "$REFER" ]] && [[ "$REFER" != "$SERVER" ]]; then
+      echo ""
+      echo "# Following referral to ${REFER}..."
+      echo ""
+
+      exec 3<>/dev/tcp/${REFER}/43 2>/dev/null
+      if [[ $? -ne 0 ]]; then
+         echo "whois: connect to ${REFER}:43 failed" >&2
+         exit 1
+      fi
+
+      echo "$QUERY" >&3
+      while IFS= read -r LINE <&3; do
+         echo "$LINE"
+      done
+      exec 3>&-
+   fi
+}
+
+main "$@"

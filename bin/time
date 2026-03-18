@@ -1,0 +1,21 @@
+#!/bin/bash
+# bashnative/time - time a simple command
+# Uses bash $SECONDS and $EPOCHREALTIME (bash 5+)
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: time COMMAND [ARGS]..."
+   exit 0
+fi
+
+START=$SECONDS
+"$@"
+RET=$?
+ELAPSED=$(( SECONDS - START ))
+
+MINS=$(( ELAPSED / 60 ))
+SECS=$(( ELAPSED % 60 ))
+
+echo "" >&2
+printf "real\t%dm%ds\n" "$MINS" "$SECS" >&2
+
+exit $RET

@@ -1,0 +1,18 @@
+#!/bin/bash
+# bashnative/usleep - sleep in microseconds
+# bash read -t supports fractional seconds
+
+if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
+   echo "Usage: usleep MICROSECONDS"
+   [[ -z "$1" ]] && exit 1 || exit 0
+fi
+
+# convert microseconds to seconds with decimal
+local USEC="$1"
+local SEC=$(( USEC / 1000000 ))
+local FRAC=$(( USEC % 1000000 ))
+
+# pad frac to 6 digits
+printf -v FRAC "%06d" "$FRAC"
+
+read -t "${SEC}.${FRAC}" < <(:) 2>/dev/null || true

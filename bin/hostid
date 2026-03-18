@@ -1,0 +1,12 @@
+#!/bin/bash
+# bashnative/hostid - print the numeric identifier for the current host
+# Hash the hostname into an 8-hex-digit id
+H="${HOSTNAME:-unknown}"
+HASH=0
+I=0
+while (( I < ${#H} )); do
+   printf -v ORD '%d' "'${H:$I:1}"
+   HASH=$(( (HASH * 31 + ORD) & 0xFFFFFFFF ))
+   (( I++ ))
+done
+printf "%08x\n" "$HASH"

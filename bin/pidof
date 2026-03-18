@@ -1,0 +1,24 @@
+#!/bin/bash
+# bashnative/pidof - find the process ID of a running program
+# Walks /proc (Linux only)
+
+if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
+   echo "Usage: pidof PROGRAM"
+   [[ -z "$1" ]] && exit 1 || exit 0
+fi
+
+NAME="$1"
+FOUND=0
+
+for PROCDIR in /proc/[0-9]*; do
+   [[ -r "${PROCDIR}/comm" ]] || continue
+   COMM="$(< "${PROCDIR}/comm")"
+   if [[ "$COMM" == "$NAME" ]]; then
+      (( FOUND )) && printf " "
+      printf "%s" "${PROCDIR##*/}"
+      FOUND=1
+   fi
+done
+
+(( FOUND )) && echo
+(( FOUND )) || exit 1

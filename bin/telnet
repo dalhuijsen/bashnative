@@ -1,0 +1,47 @@
+#!/bin/bash
+# bashnative/telnet - user interface to the TELNET protocol
+# Simple TCP connection via /dev/tcp, interactive read/write
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: telnet HOST [PORT]"
+      exit 0
+   fi
+
+   local HOST="$1"
+   local PORT="${2:-23}"
+
+   if [[ -z "$HOST" ]]; then
+      echo "telnet: missing host" >&2
+      exit 1
+   fi
+
+   echo "Trying ${HOST}:${PORT}..."
+
+   exec 3<>/dev/tcp/${HOST}/${PORT} 2>/dev/null
+   if [[ $? -ne 0 ]]; then
+      echo "telnet: Unable to connect to ${HOST}:${PORT}" >&2
+      exit 1
+   fi
+
+   echo "Connected to ${HOST}."
+   echo "Escape character is '^]'. Type 'quit' to disconnect."
+
+   # background: read from socket, write to stdout
+   while IFS= read -r LINE <&3; do
+      echo "$LINE"
+   done &
+   local READER=$!
+
+   # foreground: read from stdin, write to socket
+   while IFS= read -r LINE; do
+      [[ "$LINE" == "quit" ]] && break
+      echo "$LINE" >&3
+   done
+
+   kill $READER 2>/dev/null
+   exec 3>&-
+   echo "Connection closed."
+}
+
+main "$@"

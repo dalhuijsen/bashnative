@@ -1,0 +1,40 @@
+#!/bin/bash
+# bashnative/free - display amount of free and used memory
+# Reads /proc/meminfo (Linux only)
+
+main () {
+   if [[ ! -r /proc/meminfo ]]; then
+      echo "free: /proc/meminfo not available" >&2
+      exit 1
+   fi
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: free [-h]"
+      exit 0
+   fi
+
+   # parse /proc/meminfo into associative array
+   local -A MEM
+   while IFS=: read -r KEY VAL; do
+      KEY="${KEY%%[[:space:]]*}"
+      VAL="${VAL##*[[:space:]]}"
+      VAL="${VAL%% *}"   # strip "kB" suffix
+      MEM["$KEY"]="$VAL"
+   done < /proc/meminfo
+
+   local TOTAL="${MEM[MemTotal]:-0}"
+   local FREE="${MEM[MemFree]:-0}"
+   local AVAIL="${MEM[MemAvailable]:-0}"
+   local BUFFERS="${MEM[Buffers]:-0}"
+   local CACHED="${MEM[Cached]:-0}"
+   local USED=$(( TOTAL - FREE - BUFFERS - CACHED ))
+   local STOTAL="${MEM[SwapTotal]:-0}"
+   local SFREE="${MEM[SwapFree]:-0}"
+   local SUSED=$(( STOTAL - SFREE ))
+
+   printf "%14s %11s %11s %11s %11s %11s\n" "" "total" "used" "free" "buff/cache" "available"
+   printf "%-14s %11d %11d %11d %11d %11d\n" "Mem:" "$TOTAL" "$USED" "$FREE" "$(( BUFFERS + CACHED ))" "$AVAIL"
+   printf "%-14s %11d %11d %11d\n" "Swap:" "$STOTAL" "$SUSED" "$SFREE"
+}
+
+main "$@"

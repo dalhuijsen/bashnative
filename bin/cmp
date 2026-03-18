@@ -1,0 +1,62 @@
+#!/bin/bash
+# bashnative/cmp - compare two files byte by byte
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: cmp FILE1 FILE2"
+      exit 0
+   fi
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "cmp: missing operand" >&2
+      exit 2
+   fi
+
+   local FILE1="$1" FILE2="$2"
+
+   if [[ ! -r "$FILE1" ]]; then
+      echo "cmp: ${FILE1}: No such file or directory" >&2
+      exit 2
+   fi
+   if [[ ! -r "$FILE2" ]]; then
+      echo "cmp: ${FILE2}: No such file or directory" >&2
+      exit 2
+   fi
+
+   # compare line by line (char-by-char is too slow for large files)
+   local LINE=0
+   exec 3<"$FILE1" 4<"$FILE2"
+
+   while true; do
+      local EOF1=0 EOF2=0
+      IFS= read -r L1 <&3 || EOF1=1
+      IFS= read -r L2 <&4 || EOF2=1
+      (( LINE++ ))
+
+      if (( EOF1 && EOF2 )); then
+         # identical
+         exec 3<&- 4<&-
+         exit 0
+      fi
+
+      if (( EOF1 )); then
+         echo "cmp: EOF on ${FILE1} after line ${LINE}" >&2
+         exec 3<&- 4<&-
+         exit 1
+      fi
+
+      if (( EOF2 )); then
+         echo "cmp: EOF on ${FILE2} after line ${LINE}" >&2
+         exec 3<&- 4<&-
+         exit 1
+      fi
+
+      if [[ "$L1" != "$L2" ]]; then
+         echo "${FILE1} ${FILE2} differ: line ${LINE}"
+         exec 3<&- 4<&-
+         exit 1
+      fi
+   done
+}
+
+main "$@"

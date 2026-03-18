@@ -1,0 +1,57 @@
+#!/bin/bash
+# bashnative/diff - compare files line by line
+# Simple diff: shows lines unique to each file (not a full LCS diff)
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: diff FILE1 FILE2"
+      echo "Simple line-by-line comparison (not full unified diff)."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "diff: missing operand" >&2
+      exit 2
+   fi
+
+   local FILE1="$1" FILE2="$2"
+
+   if [[ ! -r "$FILE1" ]]; then
+      echo "diff: ${FILE1}: No such file or directory" >&2
+      exit 2
+   fi
+   if [[ ! -r "$FILE2" ]]; then
+      echo "diff: ${FILE2}: No such file or directory" >&2
+      exit 2
+   fi
+
+   # slurp both files
+   local -a LINES1 LINES2
+   while IFS= read -r LINE; do LINES1+=("$LINE"); done < "$FILE1"
+   while IFS= read -r LINE; do LINES2+=("$LINE"); done < "$FILE2"
+
+   local N1=${#LINES1[@]} N2=${#LINES2[@]}
+   local MAX=$(( N1 > N2 ? N1 : N2 ))
+   local DIFFER=0 I=0
+
+   while (( I < MAX )); do
+      if (( I >= N1 )); then
+         echo "> ${LINES2[$I]}"
+         DIFFER=1
+      elif (( I >= N2 )); then
+         echo "< ${LINES1[$I]}"
+         DIFFER=1
+      elif [[ "${LINES1[$I]}" != "${LINES2[$I]}" ]]; then
+         echo "$(( I + 1 ))c$(( I + 1 ))"
+         echo "< ${LINES1[$I]}"
+         echo "---"
+         echo "> ${LINES2[$I]}"
+         DIFFER=1
+      fi
+      (( I++ ))
+   done
+
+   (( DIFFER )) && exit 1 || exit 0
+}
+
+main "$@"

@@ -1,0 +1,92 @@
+#!/bin/bash
+# bashnative/netstat - print network connections
+# Reads /proc/net/tcp and /proc/net/udp (Linux only)
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: netstat [-t] [-u] [-l] [-n]"
+      exit 0
+   fi
+
+   local TFLAG=0 UFLAG=0 LFLAG=0 NFLAG=0
+   local SHOWALL=1
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -t) TFLAG=1; SHOWALL=0 ;;
+         -u) UFLAG=1; SHOWALL=0 ;;
+         -l) LFLAG=1 ;;
+         -n) NFLAG=1 ;;
+         -tln|-ltn|-nlt|-ntl|-tl|-lt) TFLAG=1; LFLAG=1; NFLAG=1; SHOWALL=0 ;;
+         -uln|-lun) UFLAG=1; LFLAG=1; NFLAG=1; SHOWALL=0 ;;
+      esac
+      shift
+   done
+
+   printf "%-6s %-23s %-23s %s\n" "Proto" "Local Address" "Foreign Address" "State"
+
+   if (( SHOWALL || TFLAG )); then
+      [[ -r /proc/net/tcp ]] && parse_proc_net /proc/net/tcp "tcp"
+   fi
+   if (( SHOWALL || UFLAG )); then
+      [[ -r /proc/net/udp ]] && parse_proc_net /proc/net/udp "udp"
+   fi
+}
+
+parse_proc_net () {
+   local FILE="$1" PROTO="$2"
+   local LINENUM=0
+
+   while read -r LINE; do
+      (( LINENUM++ ))
+      (( LINENUM == 1 )) && continue   # skip header
+
+      # fields: sl local_address rem_address st ...
+      local -a F=($LINE)
+      local LOCAL="${F[1]}" REMOTE="${F[2]}" STATE="${F[3]}"
+
+      # decode state
+      local STNAME
+      case "$STATE" in
+         01) STNAME="ESTABLISHED" ;;
+         02) STNAME="SYN_SENT" ;;
+         03) STNAME="SYN_RECV" ;;
+         04) STNAME="FIN_WAIT1" ;;
+         05) STNAME="FIN_WAIT2" ;;
+         06) STNAME="TIME_WAIT" ;;
+         07) STNAME="CLOSE" ;;
+         08) STNAME="CLOSE_WAIT" ;;
+         09) STNAME="LAST_ACK" ;;
+         0A) STNAME="LISTEN" ;;
+         0B) STNAME="CLOSING" ;;
+         *)  STNAME="$STATE" ;;
+      esac
+
+      # filter listen-only
+      if (( LFLAG )) && [[ "$STNAME" != "LISTEN" ]]; then
+         continue
+      fi
+
+      # decode hex address:port
+      LOCAL="$(decode_addr "$LOCAL")"
+      REMOTE="$(decode_addr "$REMOTE")"
+
+      printf "%-6s %-23s %-23s %s\n" "$PROTO" "$LOCAL" "$REMOTE" "$STNAME"
+   done < "$FILE"
+}
+
+decode_addr () {
+   local RAW="$1"
+   local HEX_IP="${RAW%%:*}"
+   local HEX_PORT="${RAW##*:}"
+
+   # convert hex IP (little-endian on x86)
+   local A=$(( 16#${HEX_IP:6:2} ))
+   local B=$(( 16#${HEX_IP:4:2} ))
+   local C=$(( 16#${HEX_IP:2:2} ))
+   local D=$(( 16#${HEX_IP:0:2} ))
+   local PORT=$(( 16#${HEX_PORT} ))
+
+   echo "${A}.${B}.${C}.${D}:${PORT}"
+}
+
+main "$@"

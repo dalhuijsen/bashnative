@@ -1,0 +1,98 @@
+#!/bin/bash
+# bashnative/nslookup - query Internet name servers
+# Sends DNS queries via /dev/udp
+# Only supports A record lookups (type 1, class IN)
+
+main () {
+   local SERVER=""
+   local QUERY=""
+
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: nslookup HOSTNAME [DNS_SERVER]"
+      echo "Simple DNS A record lookup via /dev/udp."
+      exit 0
+   fi
+
+   QUERY="$1"
+   SERVER="${2:-}"
+
+   if [[ -z "$QUERY" ]]; then
+      echo "nslookup: missing hostname" >&2
+      exit 1
+   fi
+
+   # find DNS server from resolv.conf if not specified
+   if [[ -z "$SERVER" ]]; then
+      if [[ -r /etc/resolv.conf ]]; then
+         while read -r KEY VAL _; do
+            if [[ "$KEY" == "nameserver" ]]; then
+               SERVER="$VAL"
+               break
+            fi
+         done < /etc/resolv.conf
+      fi
+   fi
+
+   if [[ -z "$SERVER" ]]; then
+      echo "nslookup: no DNS server found (set in /etc/resolv.conf or pass as arg)" >&2
+      exit 1
+   fi
+
+   echo "Server:  ${SERVER}"
+   echo ""
+
+   # build DNS query packet
+   # This is... ambitious for bash.  We build the raw bytes.
+   local TXID="\x$(printf '%02x' $(( RANDOM % 256 )))\x$(printf '%02x' $(( RANDOM % 256 )))"
+   local FLAGS="\x01\x00"     # standard query, recursion desired
+   local QDCOUNT="\x00\x01"   # 1 question
+   local ANCOUNT="\x00\x00"
+   local NSCOUNT="\x00\x00"
+   local ARCOUNT="\x00\x00"
+
+   # encode domain name (label format: length-prefixed segments)
+   local QNAME=""
+   local OLDIFS="$IFS"
+   IFS="."
+   for LABEL in $QUERY; do
+      QNAME="${QNAME}\x$(printf '%02x' ${#LABEL})"
+      local J=0
+      while (( J < ${#LABEL} )); do
+         printf -v HEX '%02x' "'${LABEL:$J:1}"
+         QNAME="${QNAME}\x${HEX}"
+         (( J++ ))
+      done
+   done
+   IFS="$OLDIFS"
+   QNAME="${QNAME}\x00"       # null terminator
+
+   local QTYPE="\x00\x01"     # A record
+   local QCLASS="\x00\x01"    # IN class
+
+   # send via UDP
+   local PACKET="${TXID}${FLAGS}${QDCOUNT}${ANCOUNT}${NSCOUNT}${ARCOUNT}${QNAME}${QTYPE}${QCLASS}"
+
+   exec 3<>/dev/udp/${SERVER}/53 2>/dev/null
+   if [[ $? -ne 0 ]]; then
+      echo "nslookup: connect to ${SERVER}:53 failed" >&2
+      exit 1
+   fi
+
+   echo -ne "$PACKET" >&3
+
+   # read response (with timeout)
+   local RESPONSE
+   read -t 3 -r -N 512 RESPONSE <&3 2>/dev/null
+   exec 3>&-
+
+   if [[ -z "$RESPONSE" ]]; then
+      echo "nslookup: no response from ${SERVER}" >&2
+      exit 1
+   fi
+
+   echo "Name:    ${QUERY}"
+   echo "(DNS response received but binary parsing is limited in bash)"
+   echo "Use: exec 3<>/dev/tcp/SERVER/53 for raw DNS queries"
+}
+
+main "$@"

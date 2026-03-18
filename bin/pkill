@@ -1,0 +1,31 @@
+#!/bin/bash
+# bashnative/pkill - signal processes based on name pattern
+# Walks /proc + kill builtin (Linux only)
+
+SIG="TERM"
+
+if [[ "$1" == -* ]] && [[ "$1" != "--help" ]]; then
+   SIG="${1#-}"
+   shift
+fi
+
+if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
+   echo "Usage: pkill [-SIGNAL] PATTERN"
+   [[ -z "$1" ]] && exit 1 || exit 0
+fi
+
+PATTERN="$1"
+FOUND=0
+
+for PROCDIR in /proc/[0-9]*; do
+   [[ -r "${PROCDIR}/comm" ]] || continue
+   COMM="$(< "${PROCDIR}/comm")"
+   PID="${PROCDIR##*/}"
+   # don't kill ourselves
+   (( PID == $$ )) && continue
+   if [[ "$COMM" =~ $PATTERN ]]; then
+      builtin kill -"$SIG" "$PID" 2>/dev/null && FOUND=1
+   fi
+done
+
+(( FOUND )) || exit 1
