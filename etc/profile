@@ -1,0 +1,185 @@
+# /etc/profile - bashnative shell configuration
+# Sourced on login. Makes bash feel like home.
+
+# ---- environment ----
+
+export BASHNATIVE=/
+export PATH=/bin
+export HOME="${HOME:-/}"
+export TERM="${TERM:-xterm-256color}"
+export EDITOR=vi
+export PAGER=less
+export LANG=C
+
+# source the fs builtin so all scripts have it
+. /function/fs 2>/dev/null
+
+# ---- history ----
+
+export HISTSIZE=10000
+export HISTFILESIZE=20000
+export HISTFILE="${HOME}/.bash_history"
+export HISTCONTROL=ignoreboth:erasedups
+export HISTTIMEFORMAT='%F %T  '
+export HISTIGNORE='ls:cd:pwd:exit:clear:history'
+
+# ---- shell options ----
+
+shopt -s checkwinsize    # update LINES/COLUMNS after each command
+shopt -s histappend      # append to history, don't overwrite
+shopt -s cmdhist         # save multi-line commands as one entry
+shopt -s autocd 2>/dev/null          # cd by just typing directory name
+shopt -s cdspell 2>/dev/null         # fix minor cd typos
+shopt -s dirspell 2>/dev/null        # fix minor tab-completion typos
+shopt -s globstar 2>/dev/null        # ** matches recursively
+shopt -s dotglob 2>/dev/null         # include hidden files in globs
+shopt -s nocaseglob 2>/dev/null      # case-insensitive globbing
+shopt -s expand_aliases              # expand aliases in scripts
+shopt -s extglob 2>/dev/null         # extended pattern matching
+
+# don't exit on ctrl-d (require 'exit')
+set -o ignoreeof 2>/dev/null
+
+# vi mode (we have vi now!)
+# set -o vi   # uncomment if you prefer vi keybindings
+
+# ---- prompt ----
+# Kali-inspired two-line prompt with color
+
+_bn_prompt () {
+   local RET=$?
+   local RED='\[\e[1;31m\]'
+   local GREEN='\[\e[1;32m\]'
+   local BLUE='\[\e[1;34m\]'
+   local CYAN='\[\e[1;36m\]'
+   local YELLOW='\[\e[1;33m\]'
+   local WHITE='\[\e[1;37m\]'
+   local DIM='\[\e[0;90m\]'
+   local RESET='\[\e[0m\]'
+
+   local USERCOLOR="$GREEN"
+   (( UID == 0 )) && USERCOLOR="$RED"
+
+   local RETSTR=""
+   (( RET != 0 )) && RETSTR="${RED}[${RET}]${RESET} "
+
+   PS1="${DIM}┌──${RESET}${USERCOLOR}(\u@\h)${RESET}${DIM}-${RESET}${BLUE}[\w]${RESET}"
+   PS1="${PS1}\n${DIM}└─${RESET}${RETSTR}${USERCOLOR}\$${RESET} "
+}
+
+PROMPT_COMMAND='_bn_prompt'
+
+# simpler fallback PS2 for continuation lines
+PS2="${DIM}   >${RESET} "
+
+# ---- aliases ----
+
+alias ll='ls -la'
+alias la='ls -a'
+alias l='ls'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias cls='clear'
+alias h='history'
+alias j='jobs'
+alias md='mkdir -p'
+alias rd='rmdir'
+alias du='du -s'
+
+# safety nets
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# grep with color (our grep doesn't support --color yet, but alias is ready)
+# alias grep='grep --color=auto'
+
+# ---- tab completion ----
+
+# complete commands from PATH
+complete -c which type
+complete -c killall pkill
+
+# complete files/dirs
+complete -f cat less more head tail vi vim ed hexdump xxd strings base64
+complete -d cd mkdir rmdir tree ls
+
+# complete hostnames for network tools
+_complete_hosts () {
+   local CUR="${COMP_WORDS[COMP_CWORD]}"
+   if [[ -r /etc/hosts ]]; then
+      local -a HOSTS
+      while read -r IP NAME REST; do
+         [[ "$IP" == "#"* ]] && continue
+         [[ -n "$NAME" ]] && HOSTS+=("$NAME")
+         for H in $REST; do
+            [[ "$H" == "#"* ]] && break
+            HOSTS+=("$H")
+         done
+      done < /etc/hosts
+      COMPREPLY=($(compgen -W "${HOSTS[*]}" -- "$CUR"))
+   fi
+}
+complete -F _complete_hosts ping telnet nc whois nslookup wget curl
+
+# complete pids for kill
+_complete_pids () {
+   local CUR="${COMP_WORDS[COMP_CWORD]}"
+   local -a PIDS
+   for P in /proc/[0-9]*; do
+      PIDS+=("${P##*/}")
+   done
+   COMPREPLY=($(compgen -W "${PIDS[*]}" -- "$CUR"))
+}
+complete -F _complete_pids kill
+
+# complete signal names for kill
+_complete_kill () {
+   local CUR="${COMP_WORDS[COMP_CWORD]}"
+   if [[ "$CUR" == -* ]]; then
+      local SIGS="HUP INT QUIT TERM KILL USR1 USR2 STOP CONT"
+      COMPREPLY=($(compgen -P '-' -W "$SIGS" -- "${CUR#-}"))
+   else
+      _complete_pids
+   fi
+}
+complete -F _complete_kill kill
+
+# ---- functions ----
+
+# quick directory stack
+pushd () { builtin pushd "$@" > /dev/null; }
+popd ()  { builtin popd "$@" > /dev/null; }
+
+# mkdir and cd into it
+mkcd () { mkdir -p "$1" && cd "$1"; }
+
+# quick find
+ff () { find "${2:-.}" -name "*${1}*"; }
+
+# quick grep in files
+gg () { grep -rn "$1" "${2:-.}"; }
+
+# show PATH entries one per line
+path () {
+   local OLDIFS="$IFS"
+   IFS=:
+   for P in $PATH; do echo "$P"; done
+   IFS="$OLDIFS"
+}
+
+# ---- welcome ----
+
+if [[ -t 1 ]] && [[ -z "$_BN_WELCOMED" ]]; then
+   export _BN_WELCOMED=1
+   echo -e "\e[1;32m"
+   echo "  ╔══════════════════════════════════════════════════╗"
+   echo "  ║        BASH-Native userland system               ║"
+   echo "  ║        $(ls /bin | wc -l) tools, one binary, all bash           ║"
+   echo "  ║                                                  ║"
+   echo "  ║  Type 'help' for bash builtins                   ║"
+   echo "  ║  Type 'ls /bin' to see available tools           ║"
+   echo "  ║  Type 'vi FILE' to edit files                    ║"
+   echo "  ╚══════════════════════════════════════════════════╝"
+   echo -e "\e[0m"
+fi

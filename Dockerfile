@@ -28,13 +28,16 @@ COPY --from=builder /src/_bashbuild/bash-5.2/bash /bin/bash
 COPY bin/  /bin/
 COPY function/ /function/
 
+# shell configuration
+COPY etc/profile /etc/profile
+
 # bashnative needs to find its function library
 ENV BASHNATIVE=/
+ENV TERM=xterm-256color
 
 # basic filesystem structure
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
-
 # /tmp for mktemp etc
 COPY --from=builder /tmp /tmp
 
