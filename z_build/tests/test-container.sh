@@ -62,12 +62,17 @@ run_tests () {
       check "uname"             "test -n \"\$(uname)\""
       check "which bash"        "which bash | grep -q /bin/bash"
 
-      # mk builtin (the big one!)
-      check "mk dir"            "mk dir /tmp/bntest"
-      check "mk dir -p"         "mk dir -p /tmp/bntest/a/b/c"
-      check "mk fifo"           "mk fifo /tmp/bntest/pipe"
-      check "mkdir script"      "mkdir /tmp/bntest2"
-      check "mkfifo script"     "mkfifo /tmp/bntest2/pipe2"
+      # fs builtin (the big one!)
+      check "fs mkdir"           "fs mkdir /tmp/bntest"
+      check "fs mkdir -p"        "fs mkdir -p /tmp/bntest/a/b/c"
+      check "fs mkfifo"          "fs mkfifo /tmp/bntest/pipe"
+      check "fs chmod"           "fs chmod 0700 /tmp/bntest"
+      check "fs ln -s"           "fs ln -s /tmp/bntest /tmp/bntest_link"
+      check "fs rm"              "touch /tmp/bntest/rmme && fs rm /tmp/bntest/rmme && ! test -e /tmp/bntest/rmme"
+      check "fs rmdir"           "fs mkdir /tmp/bntest/emptydir && fs rmdir /tmp/bntest/emptydir"
+      check "fs mv"              "touch /tmp/bntest/mvfrom && fs mv /tmp/bntest/mvfrom /tmp/bntest/mvto && test -e /tmp/bntest/mvto"
+      check "mkdir script"       "mkdir /tmp/bntest2"
+      check "mkfifo script"      "mkfifo /tmp/bntest2/pipe2"
 
       # text filters
       check "head"              "printf \"a\nb\nc\n\" | head -n 1 | grep -q a"

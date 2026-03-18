@@ -37,8 +37,8 @@ main () {
 
    if [[ -n "$DFLAG" ]]; then
       local BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
-      . "${BASHNATIVE}/function/mk" 2>/dev/null
-      mk dir "$FULLPATH" 0700
+      . "${BASHNATIVE}/function/fs" 2>/dev/null
+      fs mkdir "$FULLPATH" 0700
    else
       > "$FULLPATH"
    fi

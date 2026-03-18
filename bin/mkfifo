@@ -5,10 +5,10 @@
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
 # Uses the bashnative 'mk' function/builtin.
-# See function/mk for the three-pronged fallback logic.
+# See function/fs for the three-pronged fallback logic.
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
-. "${BASHNATIVE}/function/mk" || exit 1
+. "${BASHNATIVE}/function/fs" || exit 1
 
 MODE=
 NAMES=()
@@ -23,9 +23,9 @@ main () {
 
    for N in "${NAMES[@]}"; do
       if [[ -n "$MODE" ]]; then
-         mk fifo "$N" "$MODE"
+         fs mkfifo "$N" "$MODE"
       else
-         mk fifo "$N"
+         fs mkfifo "$N"
       fi
       if [[ $? -ne 0 ]]; then
          exit 1

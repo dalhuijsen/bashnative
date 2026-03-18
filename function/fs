@@ -1,0 +1,149 @@
+# bashnative/fs - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# @Usage:  source this, then call: fs mkdir PATH; fs chmod 0755 PATH; etc.
+# @Depends: none (degrades gracefully)
+#
+# Three-pronged approach to get filesystem syscalls:
+#  1. 'fs' builtin     - patched bashnative bash (best: zero overhead)
+#  2. enable -f         - stock bash + compiled loadable (good: no fork per call)
+#  3. external binaries - /usr/bin/mkdir etc (works everywhere, but forks)
+#
+# After sourcing, 'fs' is guaranteed to be a callable function/builtin,
+# or we die trying.
+#
+# Supported operations:
+#   fs mkdir [-p] PATH [MODE]                create directory
+#   fs mkfifo PATH [MODE]                    create FIFO
+#   fs mknod PATH {b|c|p} MAJOR MINOR [MODE] create device node
+#   fs chmod MODE PATH                       change permissions
+#   fs chown UID[:GID] PATH                  change ownership
+#   fs rm PATH...                            remove files
+#   fs rmdir PATH...                         remove directories
+#   fs ln [-s] TARGET LINKNAME               create link
+#   fs mv SOURCE DEST                        rename/move
+
+# -- probe once, use forever ------------------------------------------------
+
+_FS_METHOD=
+
+_fs_init () {
+   # 1. is 'fs' already a builtin? (patched bashnative bash)
+   if builtin fs mkdir --help >/dev/null 2>&1; then
+      _FS_METHOD=builtin
+      return 0
+   fi
+
+   # 2. try enable -f from common loadable paths
+   local LOADABLE_PATHS=(
+      "${BASH_LOADABLES_PATH}"
+      /usr/lib/bash
+      /usr/local/lib/bash
+      /opt/homebrew/lib/bash
+      /usr/lib64/bash
+   )
+   local P
+   for P in "${LOADABLE_PATHS[@]}"; do
+      [[ -z "$P" ]] && continue
+      for EXT in "" ".so" ".dylib"; do
+         if [[ -f "${P}/fs${EXT}" ]]; then
+            if enable -f "${P}/fs${EXT}" fs 2>/dev/null; then
+               _FS_METHOD=loadable
+               return 0
+            fi
+         fi
+      done
+   done
+
+   # 3. fall back to external binaries
+   if type mkdir >/dev/null 2>&1; then
+      _FS_METHOD=external
+      return 0
+   fi
+
+   # nothing works
+   echo "fs: FATAL: no method available for filesystem operations." >&2
+   echo "fs: Either run under bashnative's patched bash, compile the loadable," >&2
+   echo "fs: or ensure coreutils are in PATH." >&2
+   echo "fs: See build/build-bash.sh" >&2
+   return 1
+}
+
+# -- the wrapper (only used for external fallback) ---------------------------
+
+if ! type fs >/dev/null 2>&1; then
+   fs () {
+      case "$1" in
+         mkdir)
+            shift
+            local ARGS=() MODE= PFLAG=
+            while [[ -n "$1" ]]; do
+               case "$1" in
+                  -p) PFLAG=1 ;;
+                  *)
+                     if [[ -z "${ARGS[*]}" ]]; then
+                        ARGS+=("$1")
+                     else
+                        MODE="$1"
+                     fi
+                     ;;
+               esac
+               shift
+            done
+            local CMD=(mkdir)
+            [[ -n "$PFLAG" ]] && CMD+=(-p)
+            [[ -n "$MODE" ]] && CMD+=(-m "$MODE")
+            CMD+=("${ARGS[@]}")
+            "${CMD[@]}"
+            ;;
+         mkfifo)
+            shift
+            local NAME="$1" MODE="$2"
+            if [[ -n "$MODE" ]]; then
+               command mkfifo -m "$MODE" "$NAME"
+            else
+               command mkfifo "$NAME"
+            fi
+            ;;
+         mknod)
+            shift
+            command mknod "$@"
+            ;;
+         chmod)
+            shift
+            command chmod "$@"
+            ;;
+         chown)
+            shift
+            command chown "$@"
+            ;;
+         rm)
+            shift
+            command rm "$@"
+            ;;
+         rmdir)
+            shift
+            command rmdir "$@"
+            ;;
+         ln)
+            shift
+            command ln "$@"
+            ;;
+         mv)
+            shift
+            command mv "$@"
+            ;;
+         *)
+            echo "fs: unknown operation '$1'" >&2
+            echo "fs: operations: mkdir mkfifo mknod chmod chown rm rmdir ln mv" >&2
+            return 1
+            ;;
+      esac
+   }
+fi
+
+# -- init on source ----------------------------------------------------------
+
+_fs_init || return 1

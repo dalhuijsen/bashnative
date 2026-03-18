@@ -34,7 +34,7 @@ main () {
    echo "Binary: ${BUILDDIR}/bash-${BASH_VERSION}/bash"
    echo
    echo "Test it:"
-   echo "  ${BUILDDIR}/bash-${BASH_VERSION}/bash -c 'mk dir /tmp/bntest && echo it works && rmdir /tmp/bntest'"
+   echo "  ${BUILDDIR}/bash-${BASH_VERSION}/bash -c 'fs mkdir /tmp/bntest && echo it works && fs rmdir /tmp/bntest'"
    echo
    echo "Install it:"
    echo "  cp ${BUILDDIR}/bash-${BASH_VERSION}/bash /your/chroot/bin/bash"
@@ -123,40 +123,37 @@ fetch_source () {
 
 patch_source () {
    local SRCDIR="${BUILDDIR}/bash-${BASH_VERSION}"
-   local MKDEF="${SRCDIR}/builtins/mk.def"
+   local FSDEF="${SRCDIR}/builtins/fs.def"
    local MAKEFILE="${SRCDIR}/builtins/Makefile.in"
 
-   if [[ -f "$MKDEF" ]]; then
+   if [[ -f "$FSDEF" ]]; then
       echo "Already patched, skipping."
       return 0
    fi
 
-   echo "Patching bash with 'mk' builtin..."
+   echo "Patching bash with 'fs' builtin..."
 
    # 1. Copy our .def file into the builtins directory
-   cp "$(dirname "$0")/mk.def" "$MKDEF"
+   cp "$(dirname "$0")/fs.def" "$FSDEF"
 
-   # 2. Add mk.def to DEFSRC (after the mapfile.def line)
-   #    The line looks like: ...$(srcdir)/printf.def $(srcdir)/complete.def $(srcdir)/mapfile.def
-   sed -i.bak 's|$(srcdir)/mapfile.def|$(srcdir)/mapfile.def $(srcdir)/mk.def|' "$MAKEFILE"
+   # 2. Add fs.def to DEFSRC (after the mapfile.def line)
+   sed -i.bak 's|$(srcdir)/mapfile.def|$(srcdir)/mapfile.def $(srcdir)/fs.def|' "$MAKEFILE"
 
-   # 3. Add mk.o to OFILES (after complete.o which is the last entry)
-   #    The line looks like: ...wait.o getopts.o shopt.o printf.o getopt.o bashgetopt.o complete.o
-   sed -i.bak 's|bashgetopt.o complete.o|bashgetopt.o complete.o mk.o|' "$MAKEFILE"
+   # 3. Add fs.o to OFILES (after complete.o which is the last entry)
+   sed -i.bak 's|bashgetopt.o complete.o|bashgetopt.o complete.o fs.o|' "$MAKEFILE"
 
-   # 4. Add dependency line for mk.o
-   #    (append near the other .o: .def dependency lines)
+   # 4. Add dependency line for fs.o
    cat >> "$MAKEFILE" << 'DEPS'
 
-# bashnative mk builtin
-mk.o: mk.def
-mk.o: $(topdir)/command.h ../config.h $(BASHINCDIR)/memalloc.h
-mk.o: $(topdir)/error.h $(topdir)/general.h $(topdir)/xmalloc.h
-mk.o: $(topdir)/quit.h $(topdir)/dispose_cmd.h $(topdir)/make_cmd.h $(topdir)/sig.h
-mk.o: $(topdir)/subst.h $(topdir)/externs.h $(BASHINCDIR)/maxpath.h
-mk.o: $(topdir)/shell.h $(topdir)/syntax.h $(topdir)/unwind_prot.h $(topdir)/variables.h $(topdir)/conftypes.h
-mk.o: $(topdir)/bashtypes.h ../pathnames.h
-mk.o: ${topdir}/bashintl.h ${LIBINTL_H} $(BASHINCDIR)/gettext.h
+# bashnative fs builtin
+fs.o: fs.def
+fs.o: $(topdir)/command.h ../config.h $(BASHINCDIR)/memalloc.h
+fs.o: $(topdir)/error.h $(topdir)/general.h $(topdir)/xmalloc.h
+fs.o: $(topdir)/quit.h $(topdir)/dispose_cmd.h $(topdir)/make_cmd.h $(topdir)/sig.h
+fs.o: $(topdir)/subst.h $(topdir)/externs.h $(BASHINCDIR)/maxpath.h
+fs.o: $(topdir)/shell.h $(topdir)/syntax.h $(topdir)/unwind_prot.h $(topdir)/variables.h $(topdir)/conftypes.h
+fs.o: $(topdir)/bashtypes.h ../pathnames.h
+fs.o: ${topdir}/bashintl.h ${LIBINTL_H} $(BASHINCDIR)/gettext.h
 DEPS
 
    # Clean up sed backups
@@ -199,24 +196,30 @@ compile () {
    cd - >/dev/null
 
    # Verify the builtin is there
-   echo "Verifying 'mk' builtin..."
-   "${SRCDIR}/bash" -c 'type mk' 2>/dev/null
+   echo "Verifying 'fs' builtin..."
+   "${SRCDIR}/bash" -c 'type fs' 2>/dev/null
    if [[ $? -ne 0 ]]; then
-      echo "ERROR: mk builtin not found in compiled bash!" >&2
+      echo "ERROR: fs builtin not found in compiled bash!" >&2
       exit 1
    fi
-   echo "Verified: 'mk' is a shell builtin."
+   echo "Verified: 'fs' is a shell builtin."
 }
 
 
 helpmsg () {
 echo "Usage: ${0##*/} [OPTIONS]
-Build a patched bash binary with the bashnative 'mk' builtin.
+Build a patched bash binary with the bashnative 'fs' builtin.
 
-The 'mk' builtin provides the missing syscalls:
-  mk dir [-p] PATH [MODE]                create directories
-  mk fifo PATH [MODE]                    create FIFOs
-  mk nod PATH {b|c|p} MAJOR MINOR [MODE] create device nodes
+The 'fs' builtin provides the missing syscalls:
+  fs mkdir [-p] PATH [MODE]                create directories
+  fs mkfifo PATH [MODE]                    create FIFOs
+  fs mknod PATH {b|c|p} MAJOR MINOR [MODE] create device nodes
+  fs chmod MODE PATH                       change permissions
+  fs chown UID[:GID] PATH                  change ownership
+  fs rm PATH                               remove files
+  fs rmdir PATH                            remove directories
+  fs ln [-s] TARGET LINKNAME               create links
+  fs mv SOURCE DEST                        rename/move
 
 Options:
   --static       Attempt static linking (Linux only; macOS will

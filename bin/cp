@@ -64,11 +64,11 @@ cp_recursive () {
    local SRC="$1" DST="$2"
    local BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
 
-   . "${BASHNATIVE}/function/mk" 2>/dev/null
+   . "${BASHNATIVE}/function/fs" 2>/dev/null
 
    # create destination directory
    if [[ ! -d "$DST" ]]; then
-      mk dir "$DST"
+      fs mkdir "$DST"
    fi
 
    for ITEM in "$SRC"/*; do

@@ -5,10 +5,10 @@
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
 # Uses the bashnative 'mk' function/builtin.
-# See function/mk for the three-pronged fallback logic.
+# See function/fs for the three-pronged fallback logic.
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
-. "${BASHNATIVE}/function/mk" || exit 1
+. "${BASHNATIVE}/function/fs" || exit 1
 
 MODE=
 PFLAG=
@@ -25,15 +25,15 @@ main () {
    for D in "${DIRS[@]}"; do
       if [[ -n "$PFLAG" ]]; then
          if [[ -n "$MODE" ]]; then
-            mk dir -p "$D" "$MODE"
+            fs mkdir -p "$D" "$MODE"
          else
-            mk dir -p "$D"
+            fs mkdir -p "$D"
          fi
       else
          if [[ -n "$MODE" ]]; then
-            mk dir "$D" "$MODE"
+            fs mkdir "$D" "$MODE"
          else
-            mk dir "$D"
+            fs mkdir "$D"
          fi
       fi
       if [[ $? -ne 0 ]]; then

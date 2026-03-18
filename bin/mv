@@ -1,6 +1,9 @@
 #!/bin/bash
 # bashnative/mv - move (rename) files
-# Strategy: try bash's cp+rm for text files, fall back to external mv
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
 
 main () {
    if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
@@ -14,12 +17,18 @@ main () {
       exit 1
    fi
 
-   # try external mv first (it handles rename(2) which bash can't do)
-   command mv "$@" 2>/dev/null && exit 0
+   local SRC="$1" DST="$2"
 
-   # fallback: cp + rm (text files only)
-   local BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
-   "${BASHNATIVE}/bin/cp" "$1" "$2" && command rm "$1"
+   # if dest is a directory, move into it
+   if [[ -d "$DST" ]]; then
+      DST="${DST}/${SRC##*/}"
+   fi
+
+   # try rename(2) via fs builtin first (fast, same-filesystem)
+   fs mv "$SRC" "$DST" 2>/dev/null && return 0
+
+   # cross-filesystem fallback: cp + rm
+   "${BASHNATIVE}/bin/cp" "$SRC" "$DST" && fs rm "$SRC"
 }
 
 main "$@"

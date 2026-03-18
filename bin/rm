@@ -1,6 +1,9 @@
 #!/bin/bash
 # bashnative/rm - remove files or directories
-# NOTE: bash cannot call unlink(2) natively. Uses external rm.
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
 
 RFLAG=
 FFLAG=
@@ -8,9 +11,9 @@ FFLAG=
 main () {
    while [[ "${1:0:1}" == "-" ]]; do
       case "$1" in
-         -r|-R|--recursive) RFLAG="-r" ;;
-         -f|--force)        FFLAG="-f" ;;
-         -rf|-fr)           RFLAG="-r"; FFLAG="-f" ;;
+         -r|-R|--recursive) RFLAG=1 ;;
+         -f|--force)        FFLAG=1 ;;
+         -rf|-fr)           RFLAG=1; FFLAG=1 ;;
          --help|-h)         helpmsg; exit 0 ;;
          --) shift; break ;;
          *)  break ;;
@@ -23,7 +26,46 @@ main () {
       exit 1
    fi
 
-   command rm $RFLAG $FFLAG "$@"
+   for TARGET in "$@"; do
+      if [[ -d "$TARGET" ]] && [[ -n "$RFLAG" ]]; then
+         rm_recursive "$TARGET"
+      elif [[ -d "$TARGET" ]]; then
+         echo "rm: cannot remove '${TARGET}': Is a directory" >&2
+         [[ -z "$FFLAG" ]] && exit 1
+      elif [[ -e "$TARGET" ]]; then
+         fs rm "$TARGET"
+      elif [[ -z "$FFLAG" ]]; then
+         echo "rm: cannot remove '${TARGET}': No such file or directory" >&2
+         exit 1
+      fi
+   done
+}
+
+rm_recursive () {
+   local DIR="$1"
+   # remove children first
+   for ITEM in "$DIR"/*; do
+      [[ -e "$ITEM" ]] || continue
+      if [[ -d "$ITEM" ]] && [[ ! -L "$ITEM" ]]; then
+         rm_recursive "$ITEM"
+      else
+         fs rm "$ITEM"
+      fi
+   done
+   # remove hidden files
+   for ITEM in "$DIR"/.*; do
+      case "${ITEM##*/}" in
+         .|..) continue ;;
+      esac
+      [[ -e "$ITEM" ]] || continue
+      if [[ -d "$ITEM" ]] && [[ ! -L "$ITEM" ]]; then
+         rm_recursive "$ITEM"
+      else
+         fs rm "$ITEM"
+      fi
+   done
+   # remove the now-empty directory
+   fs rmdir "$DIR"
 }
 
 helpmsg () {
@@ -33,8 +75,6 @@ Remove (unlink) the FILE(s).
   -f, --force      ignore nonexistent files, never prompt
   -r, --recursive  remove directories and their contents recursively
   -h, --help       display this help and exit
-
-Note: requires external rm (bash cannot call unlink syscall).
 "
 }
 

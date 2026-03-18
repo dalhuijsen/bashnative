@@ -1,0 +1,444 @@
+This file is fs.def, from which is created fs.c.
+It implements the builtin "fs" in Bash.
+
+Copyright (C) 2011-2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+
+This file is part of bashnative, the UNIX userland system written in BASH.
+
+bashnative is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+bashnative is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with bashnative.  If not, see <http://www.gnu.org/licenses/>.
+
+$PRODUCES fs.c
+
+$BUILTIN fs
+$FUNCTION fs_builtin
+$SHORT_DOC fs operation [args]
+Filesystem operations that cannot be done in pure bash.
+
+  fs mkdir [-p] PATH [MODE]                 create a directory
+  fs mkfifo PATH [MODE]                     create a FIFO (named pipe)
+  fs mknod PATH {b|c|p} MAJOR MINOR [MODE]  create a device node
+  fs chmod MODE PATH                        change file mode bits
+  fs chown UID[:GID] PATH                   change file owner/group
+  fs rm PATH                                remove (unlink) a file
+  fs rmdir PATH                             remove an empty directory
+  fs ln [-s] TARGET LINKNAME                create a hard or symbolic link
+  fs mv SOURCE DEST                         rename/move a file
+
+MODE is an octal permission mode.  The -p flag creates parent directories
+as needed.  The -s flag creates a symbolic link instead of a hard link.
+
+These are the syscalls that bash cannot provide natively.
+
+Exit Status:
+Returns success unless the operation fails.
+$END
+
+#include <config.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
+
+/* makedev() lives in different places on different systems */
+#if defined (__linux__) || defined (HAVE_SYS_SYSMACROS_H)
+#  include <sys/sysmacros.h>
+#elif defined (HAVE_SYS_MKDEV_H)
+#  include <sys/mkdev.h>
+#endif
+
+#include "../bashtypes.h"
+#include "../bashintl.h"
+#include "../shell.h"
+#include "common.h"
+
+#ifndef PATH_MAX
+#  define PATH_MAX 4096
+#endif
+
+/* ---- helpers ---- */
+
+static int
+fs_parse_octal (s)
+     const char *s;
+{
+  int mode = 0;
+
+  while (*s >= '0' && *s <= '7')
+    {
+      mode = (mode << 3) | (*s - '0');
+      s++;
+    }
+  return mode;
+}
+
+static int
+fs_mkdir_parents (path, mode)
+     const char *path;
+     mode_t mode;
+{
+  char buf[PATH_MAX];
+  char *p;
+  int len;
+
+  len = strlen (path);
+  if (len >= PATH_MAX)
+    {
+      errno = ENAMETOOLONG;
+      return (-1);
+    }
+
+  strcpy (buf, path);
+
+  for (p = buf + 1; *p; p++)
+    {
+      if (*p == '/')
+        {
+          *p = '\0';
+          if (mkdir (buf, mode) < 0 && errno != EEXIST)
+            return (-1);
+          *p = '/';
+        }
+    }
+  return (mkdir (buf, mode));
+}
+
+static int
+fs_fail (path)
+     const char *path;
+{
+  builtin_error ("%s: %s", path, strerror (errno));
+  return (EXECUTION_FAILURE);
+}
+
+/* ---- subcommand handlers ---- */
+
+static int
+fs_do_mkdir (list)
+     WORD_LIST *list;
+{
+  char *path;
+  mode_t mode;
+  int pflag = 0;
+
+  if (list == 0)
+    {
+      builtin_error ("mkdir: missing path");
+      return (EX_USAGE);
+    }
+
+  if (STREQ (list->word->word, "-p"))
+    {
+      pflag = 1;
+      list = list->next;
+      if (list == 0)
+        {
+          builtin_error ("mkdir: missing path");
+          return (EX_USAGE);
+        }
+    }
+
+  path = list->word->word;
+  list = list->next;
+
+  mode = 0755;
+  if (list && list->word->word[0] >= '0' && list->word->word[0] <= '7')
+    mode = (mode_t) fs_parse_octal (list->word->word);
+
+  if (pflag)
+    {
+      if (fs_mkdir_parents (path, mode) < 0 && errno != EEXIST)
+        return (fs_fail (path));
+    }
+  else
+    {
+      if (mkdir (path, mode) < 0)
+        return (fs_fail (path));
+    }
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_mkfifo (list)
+     WORD_LIST *list;
+{
+  char *path;
+  mode_t mode;
+
+  if (list == 0)
+    {
+      builtin_error ("mkfifo: missing path");
+      return (EX_USAGE);
+    }
+
+  path = list->word->word;
+  list = list->next;
+
+  mode = 0644;
+  if (list && list->word->word[0] >= '0' && list->word->word[0] <= '7')
+    mode = (mode_t) fs_parse_octal (list->word->word);
+
+  if (mkfifo (path, mode) < 0)
+    return (fs_fail (path));
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_mknod (list)
+     WORD_LIST *list;
+{
+  char *path;
+  char ntype;
+  int major_n, minor_n;
+  dev_t dev;
+  mode_t mode, ftype;
+
+  if (list == 0 || list->next == 0 || list->next->next == 0
+      || list->next->next->next == 0)
+    {
+      builtin_error ("usage: fs mknod PATH {b|c|p} MAJOR MINOR [MODE]");
+      return (EX_USAGE);
+    }
+
+  path = list->word->word;
+  list = list->next;
+
+  ntype = list->word->word[0];
+  list = list->next;
+
+  major_n = atoi (list->word->word);
+  list = list->next;
+
+  minor_n = atoi (list->word->word);
+  list = list->next;
+
+  mode = 0666;
+  if (list && list->word->word[0] >= '0' && list->word->word[0] <= '7')
+    mode = (mode_t) fs_parse_octal (list->word->word);
+
+  switch (ntype)
+    {
+    case 'b': ftype = S_IFBLK; dev = makedev (major_n, minor_n); break;
+    case 'c': ftype = S_IFCHR; dev = makedev (major_n, minor_n); break;
+    case 'p': ftype = S_IFIFO; dev = 0; break;
+    default:
+      builtin_error ("'%c': invalid node type (use b, c, or p)", ntype);
+      return (EXECUTION_FAILURE);
+    }
+
+  if (mknod (path, mode | ftype, dev) < 0)
+    return (fs_fail (path));
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_chmod (list)
+     WORD_LIST *list;
+{
+  char *path;
+  mode_t mode;
+
+  if (list == 0 || list->next == 0)
+    {
+      builtin_error ("usage: fs chmod MODE PATH");
+      return (EX_USAGE);
+    }
+
+  mode = (mode_t) fs_parse_octal (list->word->word);
+  path = list->next->word->word;
+
+  if (chmod (path, mode) < 0)
+    return (fs_fail (path));
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_chown (list)
+     WORD_LIST *list;
+{
+  char *path, *spec, *colon;
+  uid_t uid;
+  gid_t gid;
+  int change_gid = 0;
+
+  if (list == 0 || list->next == 0)
+    {
+      builtin_error ("usage: fs chown UID[:GID] PATH");
+      return (EX_USAGE);
+    }
+
+  spec = list->word->word;
+  path = list->next->word->word;
+
+  /* parse UID:GID or just UID */
+  colon = strchr (spec, ':');
+  if (colon)
+    {
+      *colon = '\0';
+      uid = (uid_t) atoi (spec);
+      gid = (gid_t) atoi (colon + 1);
+      *colon = ':';
+      change_gid = 1;
+    }
+  else
+    {
+      uid = (uid_t) atoi (spec);
+      gid = (gid_t) -1;
+    }
+
+  if (chown (path, uid, gid) < 0)
+    return (fs_fail (path));
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_rm (list)
+     WORD_LIST *list;
+{
+  if (list == 0)
+    {
+      builtin_error ("rm: missing path");
+      return (EX_USAGE);
+    }
+
+  while (list)
+    {
+      if (unlink (list->word->word) < 0)
+        return (fs_fail (list->word->word));
+      list = list->next;
+    }
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_rmdir (list)
+     WORD_LIST *list;
+{
+  if (list == 0)
+    {
+      builtin_error ("rmdir: missing path");
+      return (EX_USAGE);
+    }
+
+  while (list)
+    {
+      if (rmdir (list->word->word) < 0)
+        return (fs_fail (list->word->word));
+      list = list->next;
+    }
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_ln (list)
+     WORD_LIST *list;
+{
+  char *target, *linkname;
+  int sflag = 0;
+
+  if (list == 0)
+    {
+      builtin_error ("usage: fs ln [-s] TARGET LINKNAME");
+      return (EX_USAGE);
+    }
+
+  if (STREQ (list->word->word, "-s"))
+    {
+      sflag = 1;
+      list = list->next;
+    }
+
+  if (list == 0 || list->next == 0)
+    {
+      builtin_error ("usage: fs ln [-s] TARGET LINKNAME");
+      return (EX_USAGE);
+    }
+
+  target = list->word->word;
+  linkname = list->next->word->word;
+
+  if (sflag)
+    {
+      if (symlink (target, linkname) < 0)
+        return (fs_fail (linkname));
+    }
+  else
+    {
+      if (link (target, linkname) < 0)
+        return (fs_fail (linkname));
+    }
+
+  return (EXECUTION_SUCCESS);
+}
+
+static int
+fs_do_mv (list)
+     WORD_LIST *list;
+{
+  if (list == 0 || list->next == 0)
+    {
+      builtin_error ("usage: fs mv SOURCE DEST");
+      return (EX_USAGE);
+    }
+
+  if (rename (list->word->word, list->next->word->word) < 0)
+    return (fs_fail (list->word->word));
+
+  return (EXECUTION_SUCCESS);
+}
+
+/* ---- main dispatch ---- */
+
+int
+fs_builtin (list)
+     WORD_LIST *list;
+{
+  char *op;
+
+  if (list == 0)
+    {
+      builtin_usage ();
+      return (EX_USAGE);
+    }
+
+  op = list->word->word;
+  list = list->next;
+
+  if (STREQ (op, "mkdir"))   return (fs_do_mkdir (list));
+  if (STREQ (op, "mkfifo"))  return (fs_do_mkfifo (list));
+  if (STREQ (op, "mknod"))   return (fs_do_mknod (list));
+  if (STREQ (op, "chmod"))   return (fs_do_chmod (list));
+  if (STREQ (op, "chown"))   return (fs_do_chown (list));
+  if (STREQ (op, "rm"))      return (fs_do_rm (list));
+  if (STREQ (op, "rmdir"))   return (fs_do_rmdir (list));
+  if (STREQ (op, "ln"))      return (fs_do_ln (list));
+  if (STREQ (op, "mv"))      return (fs_do_mv (list));
+
+  builtin_error ("'%s': unknown operation", op);
+  builtin_error ("operations: mkdir mkfifo mknod chmod chown rm rmdir ln mv");
+  return (EX_USAGE);
+}

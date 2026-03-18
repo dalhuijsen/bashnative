@@ -1,5 +1,5 @@
 #!/bin/bash
-# bashnative/chmod - change file mode bits
+# bashnative/chown - change file owner and group
 # Uses the bashnative 'fs' function/builtin.
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
@@ -7,21 +7,21 @@ BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
 
 main () {
    if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
-      echo "Usage: chmod MODE FILE..."
-      echo "Change the mode of each FILE to MODE (octal)."
+      echo "Usage: chown OWNER[:GROUP] FILE..."
+      echo "Change the owner and/or group of each FILE."
       exit 0
    fi
 
    if [[ -z "$1" ]] || [[ -z "$2" ]]; then
-      echo "chmod: missing operand" >&2
+      echo "chown: missing operand" >&2
       exit 1
    fi
 
-   local MODE="$1"
+   local OWNER="$1"
    shift
 
    for FILE in "$@"; do
-      fs chmod "$MODE" "$FILE"
+      fs chown "$OWNER" "$FILE"
       if [[ $? -ne 0 ]]; then
          exit 1
       fi

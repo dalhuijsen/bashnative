@@ -5,10 +5,10 @@
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
 # Uses the bashnative 'mk' function/builtin.
-# See function/mk for the three-pronged fallback logic.
+# See function/fs for the three-pronged fallback logic.
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
-. "${BASHNATIVE}/function/mk" || exit 1
+. "${BASHNATIVE}/function/fs" || exit 1
 
 MODE=
 
@@ -59,17 +59,17 @@ main () {
             exit 1
          fi
          if [[ -n "$MODE" ]]; then
-            mk nod "$NAME" "$TYPE" "$MAJOR" "$MINOR" "$MODE"
+            fs mknod "$NAME" "$TYPE" "$MAJOR" "$MINOR" "$MODE"
          else
-            mk nod "$NAME" "$TYPE" "$MAJOR" "$MINOR"
+            fs mknod "$NAME" "$TYPE" "$MAJOR" "$MINOR"
          fi
          ;;
       p)
          # FIFO via mknod - no major/minor needed
          if [[ -n "$MODE" ]]; then
-            mk nod "$NAME" p 0 0 "$MODE"
+            fs mknod "$NAME" p 0 0 "$MODE"
          else
-            mk nod "$NAME" p 0 0
+            fs mknod "$NAME" p 0 0
          fi
          ;;
       *)

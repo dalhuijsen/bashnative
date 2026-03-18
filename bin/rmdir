@@ -1,6 +1,9 @@
 #!/bin/bash
 # bashnative/rmdir - remove empty directories
-# NOTE: bash cannot call rmdir(2) natively. Uses external rmdir.
+# Uses the bashnative 'fs' function/builtin.
+
+BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
 
 main () {
    if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
@@ -9,7 +12,9 @@ main () {
       exit 0
    fi
 
-   command rmdir "$@"
+   for DIR in "$@"; do
+      fs rmdir "$DIR"
+   done
 }
 
 main "$@"

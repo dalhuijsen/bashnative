@@ -1,9 +1,9 @@
 #!/bin/bash
 # bashnative/ln - create links between files
-# NOTE: bash cannot call link(2) or symlink(2) natively.
-# This uses the 'mk' fallback chain or external ln.
+# Uses the bashnative 'fs' function/builtin.
 
 BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+. "${BASHNATIVE}/function/fs" || exit 1
 
 SFLAG=
 FFLAG=
@@ -11,7 +11,7 @@ FFLAG=
 main () {
    while [[ "${1:0:1}" == "-" ]]; do
       case "$1" in
-         -s|--symbolic) SFLAG=1 ;;
+         -s|--symbolic) SFLAG="-s" ;;
          -f|--force)    FFLAG=1 ;;
          --help|-h)     helpmsg; exit 0 ;;
          --) shift; break ;;
@@ -29,15 +29,10 @@ main () {
    LINKNAME="$2"
 
    if [[ -n "$FFLAG" ]] && [[ -e "$LINKNAME" ]]; then
-      rm -f "$LINKNAME" 2>/dev/null
+      fs rm "$LINKNAME" 2>/dev/null
    fi
 
-   # can't do this in pure bash, need external ln
-   if [[ -n "$SFLAG" ]]; then
-      command ln -s "$TARGET" "$LINKNAME"
-   else
-      command ln "$TARGET" "$LINKNAME"
-   fi
+   fs ln $SFLAG "$TARGET" "$LINKNAME"
 }
 
 helpmsg () {
@@ -47,8 +42,6 @@ Create a link to TARGET with the name LINK_NAME.
   -s, --symbolic   make symbolic links instead of hard links
   -f, --force      remove existing destination files
   -h, --help       display this help and exit
-
-Note: requires external ln (bash cannot call link/symlink syscalls).
 "
 }
 

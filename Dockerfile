@@ -4,14 +4,14 @@
 # a minimal image with just bash + bashnative scripts
 ###########################################################
 
-# --- Stage 1: compile patched bash with 'mk' builtin ---
+# --- Stage 1: compile patched bash with 'fs' builtin ---
 FROM debian:bookworm-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libc6-dev make curl ca-certificates bison \
     && rm -rf /var/lib/apt/lists/*
 
-COPY build/mk.def /src/mk.def
+COPY build/fs.def /src/fs.def
 COPY build/build-bash.sh /src/build-bash.sh
 RUN chmod +x /src/build-bash.sh
 
