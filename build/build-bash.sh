@@ -176,6 +176,9 @@ compile () {
       CONFIGOPTS="${CONFIGOPTS} --enable-static-link"
    fi
 
+   # /dev/tcp and /dev/udp support -- needed for bashnative curl/wget/nc
+   CONFIGOPTS="${CONFIGOPTS} --enable-net-redirections"
+
    # Disable stuff we don't need to keep the binary small
    CONFIGOPTS="${CONFIGOPTS} --without-bash-malloc"
    CONFIGOPTS="${CONFIGOPTS} --disable-nls"
