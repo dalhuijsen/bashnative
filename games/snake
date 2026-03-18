@@ -25,6 +25,16 @@ main () {
 
    draw_border
 
+   # draw initial food (place_food was called before border wiped screen)
+   echo -ne "\e[$((FY+1));$((FX+1))H\e[1;31m*\e[0m"
+
+   # draw initial snake
+   local I=0
+   while (( I < ${#SX[@]} )); do
+      echo -ne "\e[$((SY[I]+1));$((SX[I]+1))H\e[1;32mO\e[0m"
+      (( I++ ))
+   done
+
    while true; do
       # read input (non-blocking)
       local KEY=""
