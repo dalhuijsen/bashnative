@@ -15,8 +15,8 @@ main () {
    local SECS="$1"
    SECS="${SECS%s}"   # strip trailing 's'
 
-   # read -t on a pipe that will never produce data
-   read -t "$SECS" < <(:) 2>/dev/null || true
+   # read -t on a pipe opened read-write (<>) so the fd stays open
+   read -t "$SECS" <> <(:) 2>/dev/null || true
 }
 
 main "$@"
