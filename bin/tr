@@ -9,6 +9,36 @@
 
 DFLAG=
 
+# expand ranges like a-z, A-Z, 0-9 into full character sets
+_expand_ranges () {
+   local S="$1" OUT="" I=0
+   while (( I < ${#S} )); do
+      local CH="${S:$I:1}"
+      # look for X-Y pattern
+      if (( I + 2 < ${#S} )) && [[ "${S:$((I+1)):1}" == "-" ]]; then
+         local START="$CH"
+         local END="${S:$((I+2)):1}"
+         # use printf to get ordinal values
+         local ORD_S ORD_E
+         printf -v ORD_S '%d' "'$START"
+         printf -v ORD_E '%d' "'$END"
+         if (( ORD_S <= ORD_E )); then
+            local J=$ORD_S
+            while (( J <= ORD_E )); do
+               printf -v CH '\\x'"$(printf '%02x' "$J")"
+               OUT="${OUT}$(printf "$CH")"
+               (( J++ ))
+            done
+            (( I += 3 ))
+            continue
+         fi
+      fi
+      OUT="${OUT}${CH}"
+      (( I++ ))
+   done
+   printf '%s' "$OUT"
+}
+
 main () {
    if [[ "$1" == "-d" ]]; then
       DFLAG=1
@@ -20,8 +50,8 @@ main () {
       exit 0
    fi
 
-   SET1="$1"
-   SET2="$2"
+   SET1="$(_expand_ranges "$1")"
+   SET2="$(_expand_ranges "$2")"
 
    if [[ -z "$SET1" ]]; then
       echo "tr: missing operand" >&2

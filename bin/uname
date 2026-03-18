@@ -9,13 +9,8 @@
 
 SYSNAME="${OSTYPE%%[0-9]*}"  # e.g. linux-gnu -> linux, darwin -> darwin
 SYSNAME="${SYSNAME%-gnu}"    # strip -gnu suffix
-# capitalize first letter (bash 3.2 compatible -- no ${VAR^} there)
-FIRST="${SYSNAME:0:1}"
-REST="${SYSNAME:1}"
-case "$FIRST" in
-   [a-z]) FIRST=$(printf '%s' "$FIRST" | tr a-z A-Z) ;;  # THE ENGINE
-esac
-SYSNAME="${FIRST}${REST}"
+# capitalize first letter
+SYSNAME="${SYSNAME^}"
 
 NODENAME="$HOSTNAME"
 MACHINE="${MACHTYPE%%-*}"    # e.g. x86_64-apple-darwin -> x86_64

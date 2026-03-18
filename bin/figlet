@@ -44,7 +44,7 @@ list_fonts () {
 }
 
 render () {
-   local TEXT="$(echo "$1" | tr 'a-z' 'A-Z')"   # uppercase for our fonts
+   local TEXT="${1^^}"   # bash 4.0+ native uppercase — no tr dependency
    local FONTFILE="$2"
    local HEIGHT=0
 
