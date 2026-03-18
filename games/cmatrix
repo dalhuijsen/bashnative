@@ -98,7 +98,7 @@ main () {
       IFS= read -r -s -n 1 -t "$SLEEP_T" KEY
       if [[ -n "$KEY" ]]; then
          if (( SAVER )); then break; fi
-         [[ "$KEY" == "q" || "$KEY" == "Q" ]] && break
+         [[ "$KEY" == "q" || "$KEY" == "Q" || "$KEY" == $'\x03' ]] && break
          # runtime speed change
          if [[ "$KEY" =~ ^[0-9]$ ]]; then
             DELAY="$KEY"
