@@ -1,0 +1,11 @@
+#!/bin/bash
+# bashnative/rev - reverse lines characterwise
+
+while IFS= read -r LINE; do
+   REV=""
+   I=${#LINE}
+   while (( I-- > 0 )); do
+      REV="${REV}${LINE:$I:1}"
+   done
+   echo "$REV"
+done

@@ -1,0 +1,3 @@
+#!/bin/bash
+# bashnative/arch - print machine hardware name
+echo "$MACHTYPE"

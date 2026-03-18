@@ -1,0 +1,55 @@
+#!/bin/bash
+# bashnative/head - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+LINES=10
+
+main () {
+   # parse -n NUM or -NUM
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -n) shift; LINES="$1" ;;
+         --help|-h) helpmsg; exit 0 ;;
+         -[0-9]*) LINES="${1#-}" ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      head_stream
+   else
+      MULTI=$(( $# > 1 ))
+      for FILE in "$@"; do
+         if (( MULTI )); then
+            echo "==> ${FILE} <=="
+         fi
+         if [[ ! -r "$FILE" ]]; then
+            echo "head: cannot open '${FILE}' for reading: No such file or directory" >&2
+         else
+            head_stream < "$FILE"
+         fi
+      done
+   fi
+}
+
+head_stream () {
+   local N=0
+   while (( N++ < LINES )) && IFS= read -r LINE; do
+      echo "$LINE"
+   done
+}
+
+helpmsg () {
+echo "Usage: head [OPTION]... [FILE]...
+Print the first 10 lines of each FILE to standard output.
+
+  -n NUM   output the first NUM lines
+  -h       display this help and exit
+"
+}
+
+main "$@"

@@ -1,0 +1,25 @@
+#!/bin/bash
+# bashnative/mv - move (rename) files
+# Strategy: try bash's cp+rm for text files, fall back to external mv
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: mv SOURCE DEST"
+      echo "Rename SOURCE to DEST, or move SOURCE to DEST directory."
+      exit 0
+   fi
+
+   if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+      echo "mv: missing operand" >&2
+      exit 1
+   fi
+
+   # try external mv first (it handles rename(2) which bash can't do)
+   command mv "$@" 2>/dev/null && exit 0
+
+   # fallback: cp + rm (text files only)
+   local BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+   "${BASHNATIVE}/bin/cp" "$1" "$2" && command rm "$1"
+}
+
+main "$@"

@@ -1,0 +1,3 @@
+#!/bin/bash
+# bashnative/hostname - bash gives us this for free
+echo "$HOSTNAME"

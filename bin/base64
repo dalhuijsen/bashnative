@@ -1,0 +1,124 @@
+#!/bin/bash
+# bashnative/base64 - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Base64 encode/decode in pure bash.  Yes, really.
+# Not fast, but hey, we're doing base64 in a shell script.
+
+B64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+DFLAG=0
+
+main () {
+   if [[ "$1" == "-d" ]] || [[ "$1" == "--decode" ]]; then
+      DFLAG=1
+      shift
+   fi
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: base64 [-d] [FILE]"
+      echo "Base64 encode or decode FILE, or standard input."
+      exit 0
+   fi
+
+   if (( DFLAG )); then
+      base64_decode < "${1:-/dev/stdin}"
+   else
+      base64_encode < "${1:-/dev/stdin}"
+   fi
+}
+
+base64_encode () {
+   local -a BYTES
+   local COUNT=0 COL=0
+
+   while IFS= read -r -N 1 CHAR; do
+      printf -v VAL '%d' "'$CHAR"
+      BYTES+=($VAL)
+      (( COUNT++ ))
+
+      if (( COUNT == 3 )); then
+         # encode 3 bytes -> 4 base64 chars
+         local B0=${BYTES[0]} B1=${BYTES[1]} B2=${BYTES[2]}
+         printf '%s' "${B64:$(( (B0 >> 2) & 63 )):1}"
+         printf '%s' "${B64:$(( ((B0 << 4) | (B1 >> 4)) & 63 )):1}"
+         printf '%s' "${B64:$(( ((B1 << 2) | (B2 >> 6)) & 63 )):1}"
+         printf '%s' "${B64:$(( B2 & 63 )):1}"
+         BYTES=()
+         COUNT=0
+         COL=$(( COL + 4 ))
+         if (( COL >= 76 )); then
+            echo
+            COL=0
+         fi
+      fi
+   done
+
+   # handle remaining bytes with padding
+   if (( COUNT == 1 )); then
+      local B0=${BYTES[0]}
+      printf '%s' "${B64:$(( (B0 >> 2) & 63 )):1}"
+      printf '%s' "${B64:$(( (B0 << 4) & 63 )):1}"
+      printf '=='
+   elif (( COUNT == 2 )); then
+      local B0=${BYTES[0]} B1=${BYTES[1]}
+      printf '%s' "${B64:$(( (B0 >> 2) & 63 )):1}"
+      printf '%s' "${B64:$(( ((B0 << 4) | (B1 >> 4)) & 63 )):1}"
+      printf '%s' "${B64:$(( (B1 << 2) & 63 )):1}"
+      printf '='
+   fi
+   echo
+}
+
+base64_decode () {
+   local LINE COMBINED=""
+
+   # read all input, strip whitespace
+   while IFS= read -r LINE; do
+      COMBINED="${COMBINED}${LINE}"
+   done
+
+   # decode
+   local I=0 LEN=${#COMBINED}
+   while (( I < LEN )); do
+      local C0 C1 C2 C3
+      local V0 V1 V2 V3
+
+      C0="${COMBINED:$((I++)):1}"
+      C1="${COMBINED:$((I++)):1}"
+      C2="${COMBINED:$((I++)):1}"
+      C3="${COMBINED:$((I++)):1}"
+
+      # look up values in B64 table
+      V0=$(b64val "$C0")
+      V1=$(b64val "$C1")
+
+      printf "\\$(printf '%03o' "$(( (V0 << 2) | (V1 >> 4) ))")"
+
+      if [[ "$C2" != "=" ]]; then
+         V2=$(b64val "$C2")
+         printf "\\$(printf '%03o' "$(( ((V1 << 4) | (V2 >> 2)) & 255 ))")"
+
+         if [[ "$C3" != "=" ]]; then
+            V3=$(b64val "$C3")
+            printf "\\$(printf '%03o' "$(( ((V2 << 6) | V3) & 255 ))")"
+         fi
+      fi
+   done
+}
+
+b64val () {
+   local C="$1"
+   local I=0
+   while (( I < 64 )); do
+      if [[ "${B64:$I:1}" == "$C" ]]; then
+         echo $I
+         return
+      fi
+      (( I++ ))
+   done
+   echo 0
+}
+
+main "$@"

@@ -1,0 +1,25 @@
+#!/bin/bash
+# bashnative/echo - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# bash's builtin echo does most of the work; we just wrap it for PATH usage
+# supports -n (no newline) and -e (escape sequences)
+
+NFLAG=
+EFLAG=
+
+while [[ "${1:0:1}" == "-" ]]; do
+   case "$1" in
+      -n) NFLAG="-n" ;;
+      -e) EFLAG="-e" ;;
+      -ne|-en) NFLAG="-n"; EFLAG="-e" ;;
+      -E) EFLAG= ;;   # explicitly disable escapes
+      --) shift; break ;;
+      *)  break ;;
+   esac
+   shift
+done
+
+echo $NFLAG $EFLAG "$*"

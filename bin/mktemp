@@ -1,0 +1,60 @@
+#!/bin/bash
+# bashnative/mktemp - create a temporary file or directory
+
+DFLAG=
+TEMPLATE="tmp.XXXXXXXXXX"
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -d) DFLAG=1 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   [[ -n "$1" ]] && TEMPLATE="$1"
+
+   local TMPDIR="${TMPDIR:-/tmp}"
+
+   # replace X's with random characters
+   local NAME="$TEMPLATE"
+   local CHARS="abcdefghijklmnopqrstuvwxyz0123456789"
+   local RESULT=""
+   local I=0
+   while (( I < ${#NAME} )); do
+      if [[ "${NAME:$I:1}" == "X" ]]; then
+         RESULT="${RESULT}${CHARS:$(( RANDOM % ${#CHARS} )):1}"
+      else
+         RESULT="${RESULT}${NAME:$I:1}"
+      fi
+      (( I++ ))
+   done
+
+   local FULLPATH="${TMPDIR}/${RESULT}"
+
+   if [[ -n "$DFLAG" ]]; then
+      local BASHNATIVE="${BASHNATIVE:-$(dirname "$0")/..}"
+      . "${BASHNATIVE}/function/mk" 2>/dev/null
+      mk dir "$FULLPATH" 0700
+   else
+      > "$FULLPATH"
+   fi
+
+   echo "$FULLPATH"
+}
+
+helpmsg () {
+echo "Usage: mktemp [-d] [TEMPLATE]
+Create a temporary file or directory, safely, and print its name.
+
+  -d         create a directory, not a file
+  -h, --help display this help and exit
+
+TEMPLATE defaults to tmp.XXXXXXXXXX (X's are replaced with random chars).
+"
+}
+
+main "$@"

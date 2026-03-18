@@ -1,0 +1,27 @@
+#!/bin/bash
+# bashnative/printenv - print all or part of environment
+
+if [[ -z "$1" ]]; then
+   # print all -- same trick as env
+   export -p | while read -r LINE; do
+      LINE="${LINE#declare -x }"
+      # remove quotes around value if present
+      if [[ "$LINE" == *='"'* ]]; then
+         NAME="${LINE%%=*}"
+         VAL="${LINE#*=\"}"
+         VAL="${VAL%\"}"
+         echo "${NAME}=${VAL}"
+      else
+         echo "$LINE"
+      fi
+   done
+else
+   # print specific variable(s)
+   for VAR in "$@"; do
+      if [[ -n "${!VAR+x}" ]]; then
+         echo "${!VAR}"
+      else
+         exit 1
+      fi
+   done
+fi

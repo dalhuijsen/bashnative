@@ -1,0 +1,30 @@
+#!/bin/bash
+# bashnative/sleep - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Pure bash sleep using read -t (integer seconds only, no fractions)
+# Trick: read with timeout on a fd that will never have data
+
+main () {
+   if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
+      echo "Usage: sleep SECONDS"
+      [[ -z "$1" ]] && exit 1 || exit 0
+   fi
+
+   local SECS="$1"
+
+   # strip trailing 's' if someone writes "5s"
+   SECS="${SECS%s}"
+
+   if [[ ! "$SECS" =~ ^[0-9]+$ ]]; then
+      echo "sleep: invalid time interval '$1'" >&2
+      exit 1
+   fi
+
+   # read -t N will wait N seconds on an empty pipe
+   read -t "$SECS" < <(:) 2>/dev/null || true
+}
+
+main "$@"

@@ -1,0 +1,16 @@
+#!/bin/bash
+# bashnative/chmod - change file mode bits
+# NOTE: bash cannot call chmod(2) natively. Uses external chmod.
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: chmod MODE FILE..."
+      echo "Change the mode of each FILE to MODE."
+      echo "Note: requires external chmod (bash cannot call chmod syscall)."
+      exit 0
+   fi
+
+   command chmod "$@"
+}
+
+main "$@"

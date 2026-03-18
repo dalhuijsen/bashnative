@@ -1,0 +1,3 @@
+#!/bin/bash
+# bashnative/logname - print user's login name
+echo "${LOGNAME:-$USER}"

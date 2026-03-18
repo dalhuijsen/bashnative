@@ -1,0 +1,5 @@
+#!/bin/bash
+# bashnative/sync - can't actually call sync(2) from bash
+# but we can flush our own file descriptors
+echo "sync: warning: cannot call sync(2) from pure bash" >&2
+echo "sync: flushing bash file descriptors only" >&2

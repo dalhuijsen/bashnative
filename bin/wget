@@ -1,0 +1,107 @@
+#!/bin/bash
+# bashnative/wget - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# HTTP/1.1 GET via /dev/tcp -- the bashnative way
+# Supports: http only (no https -- bash can't do TLS)
+
+OUTFILE=
+QFLAG=0
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -O) shift; OUTFILE="$1" ;;
+         -q) QFLAG=1 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   local URL="$1"
+   if [[ -z "$URL" ]]; then
+      echo "wget: missing URL" >&2
+      exit 1
+   fi
+
+   # parse URL
+   local PROTO="${URL%%://*}"
+   local REST="${URL#*://}"
+   local HOST="${REST%%/*}"
+   local PATH="/${REST#*/}"
+   local PORT=80
+
+   if [[ "$PROTO" == "https" ]]; then
+      echo "wget: HTTPS not supported (bash can't do TLS)" >&2
+      exit 1
+   fi
+
+   # handle host:port
+   if [[ "$HOST" == *:* ]]; then
+      PORT="${HOST##*:}"
+      HOST="${HOST%:*}"
+   fi
+
+   [[ "$PATH" == "/$REST" ]] && PATH="/"
+
+   # default output filename
+   if [[ -z "$OUTFILE" ]]; then
+      OUTFILE="${PATH##*/}"
+      [[ -z "$OUTFILE" ]] && OUTFILE="index.html"
+   fi
+
+   (( QFLAG )) || echo "Connecting to ${HOST}:${PORT}..." >&2
+
+   # open TCP connection
+   exec 3<>/dev/tcp/${HOST}/${PORT} 2>/dev/null
+   if [[ $? -ne 0 ]]; then
+      echo "wget: unable to connect to ${HOST}:${PORT}" >&2
+      exit 1
+   fi
+
+   # send HTTP request
+   echo -e "GET ${PATH} HTTP/1.1\r\nHost: ${HOST}\r\nUser-Agent: bashnative-wget/1.0\r\nConnection: close\r\n\r\n" >&3
+
+   # read response -- skip headers, save body
+   local IN_BODY=0
+   if [[ "$OUTFILE" == "-" ]]; then
+      # output to stdout
+      while IFS= read -r LINE <&3; do
+         if (( IN_BODY )); then
+            echo "$LINE"
+         elif [[ "$LINE" == $'\r' ]] || [[ -z "$LINE" ]]; then
+            IN_BODY=1
+         fi
+      done
+   else
+      > "$OUTFILE"
+      while IFS= read -r LINE <&3; do
+         if (( IN_BODY )); then
+            echo "$LINE" >> "$OUTFILE"
+         elif [[ "$LINE" == $'\r' ]] || [[ -z "$LINE" ]]; then
+            IN_BODY=1
+         fi
+      done
+      (( QFLAG )) || echo "Saved to '${OUTFILE}'" >&2
+   fi
+
+   exec 3>&-
+}
+
+helpmsg () {
+echo "Usage: wget [OPTION]... URL
+Download a file via HTTP (no HTTPS -- bash can't do TLS).
+
+  -O FILE   save to FILE (use - for stdout)
+  -q        quiet mode
+  -h        display this help and exit
+
+Uses bash /dev/tcp for networking. No external tools needed.
+"
+}
+
+main "$@"

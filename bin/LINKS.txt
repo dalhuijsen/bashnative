@@ -4,4 +4,6 @@ editor vim
 editor vi
 editor pico
 bash sh
+nc netcat
+wget curl  # wget and curl share the same HTTP-over-/dev/tcp approach
 

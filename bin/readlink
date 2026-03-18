@@ -1,0 +1,51 @@
+#!/bin/bash
+# bashnative/readlink - print resolved symbolic links
+
+FFLAG=
+
+if [[ "$1" == "-f" ]]; then
+   FFLAG=1
+   shift
+fi
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: readlink [-f] FILE"
+   echo "Print value of a symbolic link or canonical file name."
+   echo "  -f  canonicalize path"
+   exit 0
+fi
+
+if [[ -z "$1" ]]; then
+   echo "readlink: missing operand" >&2
+   exit 1
+fi
+
+if [[ -n "$FFLAG" ]]; then
+   # canonicalize: resolve all symlinks and relative components
+   # bash trick: cd to dir, get PWD, append basename
+   local TARGET="$1"
+   if [[ -d "$TARGET" ]]; then
+      (cd "$TARGET" && echo "$PWD")
+   elif [[ -e "$TARGET" ]]; then
+      local DIR="${TARGET%/*}"
+      local BASE="${TARGET##*/}"
+      if [[ "$DIR" == "$TARGET" ]]; then
+         echo "${PWD}/${BASE}"
+      else
+         (cd "$DIR" && echo "${PWD}/${BASE}")
+      fi
+   else
+      echo "readlink: $1: No such file or directory" >&2
+      exit 1
+   fi
+else
+   # just read the symlink
+   if [[ -L "$1" ]]; then
+      # use ls -l and parse (no other way in bash 3.2)
+      local LS="$(command ls -ld "$1" 2>/dev/null)"
+      echo "${LS##* -> }"
+   else
+      echo "readlink: $1: Not a symbolic link" >&2
+      exit 1
+   fi
+fi

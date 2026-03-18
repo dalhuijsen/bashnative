@@ -1,0 +1,105 @@
+#!/bin/bash
+# bashnative/cut - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+DELIM=$'\t'
+FIELDS=
+CHARS=
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -d) shift; DELIM="$1" ;;
+         -d?) DELIM="${1:2}" ;;           # -d: style (delimiter stuck to flag)
+         -f) shift; FIELDS="$1" ;;
+         -f*) FIELDS="${1:2}" ;;           # -f2 style
+         -c) shift; CHARS="$1" ;;
+         -c*) CHARS="${1:2}" ;;            # -c1-5 style
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -n "$CHARS" ]]; then
+      cut_chars < "${1:-/dev/stdin}"
+   elif [[ -n "$FIELDS" ]]; then
+      cut_fields < "${1:-/dev/stdin}"
+   else
+      echo "cut: you must specify a list of bytes, characters, or fields" >&2
+      exit 1
+   fi
+}
+
+cut_chars () {
+   # supports single number or range N-M
+   local START END
+   if [[ "$CHARS" == *-* ]]; then
+      START="${CHARS%-*}"
+      END="${CHARS#*-}"
+      START="${START:-1}"
+   else
+      START="$CHARS"
+      END="$CHARS"
+   fi
+   (( START-- ))  # convert to 0-based
+   local LEN=$(( END - START ))
+
+   while IFS= read -r LINE; do
+      echo "${LINE:$START:$LEN}"
+   done
+}
+
+cut_fields () {
+   # supports single field, comma-separated, or range
+   while IFS= read -r LINE; do
+      # split line by delimiter into array
+      local -a PARTS
+      local OLDIFS="$IFS"
+      IFS="$DELIM" read -ra PARTS <<< "$LINE"
+      IFS="$OLDIFS"
+
+      local OUT="" FIRST=1
+
+      # parse field spec
+      local IFS=","
+      for SPEC in $FIELDS; do
+         if [[ "$SPEC" == *-* ]]; then
+            local S="${SPEC%-*}" E="${SPEC#*-}"
+            S="${S:-1}"
+            E="${E:-${#PARTS[@]}}"
+            local I=$S
+            while (( I <= E )); do
+               (( FIRST )) || OUT="${OUT}${DELIM}"
+               OUT="${OUT}${PARTS[$((I-1))]}"
+               FIRST=0
+               (( I++ ))
+            done
+         else
+            (( FIRST )) || OUT="${OUT}${DELIM}"
+            OUT="${OUT}${PARTS[$((SPEC-1))]}"
+            FIRST=0
+         fi
+      done
+
+      echo "$OUT"
+   done
+}
+
+helpmsg () {
+echo "Usage: cut OPTION... [FILE]
+Remove sections from each line of files.
+
+  -d DELIM   use DELIM instead of TAB for field delimiter
+  -f LIST    select only these fields (1-indexed, comma separated)
+  -c LIST    select only these characters
+  -h         display this help and exit
+
+LIST is N, N-M, or N,M,...
+"
+}
+
+main "$@"

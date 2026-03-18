@@ -1,0 +1,41 @@
+#!/bin/bash
+# bashnative/rm - remove files or directories
+# NOTE: bash cannot call unlink(2) natively. Uses external rm.
+
+RFLAG=
+FFLAG=
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -r|-R|--recursive) RFLAG="-r" ;;
+         -f|--force)        FFLAG="-f" ;;
+         -rf|-fr)           RFLAG="-r"; FFLAG="-f" ;;
+         --help|-h)         helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *)  break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      echo "rm: missing operand" >&2
+      exit 1
+   fi
+
+   command rm $RFLAG $FFLAG "$@"
+}
+
+helpmsg () {
+echo "Usage: rm [OPTION]... FILE...
+Remove (unlink) the FILE(s).
+
+  -f, --force      ignore nonexistent files, never prompt
+  -r, --recursive  remove directories and their contents recursively
+  -h, --help       display this help and exit
+
+Note: requires external rm (bash cannot call unlink syscall).
+"
+}
+
+main "$@"

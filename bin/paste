@@ -1,0 +1,44 @@
+#!/bin/bash
+# bashnative/paste - merge lines of files
+
+DELIM=$'\t'
+
+if [[ "$1" == "-d" ]]; then
+   shift; DELIM="$1"; shift
+fi
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: paste [-d DELIM] FILE..."
+   exit 0
+fi
+
+# open all files on different fds
+FDS=()
+FD=3
+for FILE in "$@"; do
+   eval "exec ${FD}<'${FILE}'"
+   FDS+=($FD)
+   (( FD++ ))
+done
+
+# read one line from each file, join with delimiter
+DONE=0
+while (( !DONE )); do
+   DONE=1
+   FIRST=1
+   OUT=""
+   for F in "${FDS[@]}"; do
+      (( FIRST )) || OUT="${OUT}${DELIM}"
+      FIRST=0
+      if IFS= read -r LINE <&$F; then
+         OUT="${OUT}${LINE}"
+         DONE=0
+      fi
+   done
+   (( DONE )) || echo "$OUT"
+done
+
+# close fds
+for F in "${FDS[@]}"; do
+   eval "exec ${F}<&-"
+done

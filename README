@@ -1,54 +1,74 @@
 
 
- **********************************************************
- * BASH-Native: The UNIX userland system, written in BASH *
- **********************************************************
-                                  Copyright(C)2011-2013 GPL
+**********************************************************
+* BASH-Native: The UNIX userland system, written in BASH *
+**********************************************************
+                                 Copyright(C)2011-2013 GPL
 
 
- Project completion: ~ 3%
- Latest milestone: Working CHROOT implementation. (*)
- Top priority: mk{nod,dir,fifo} *help?! howto do this without external binaries*
- 
+Project completion: ~ 25%
+Latest milestone: mk builtin for mkdir/mkfifo/mknod; 80+ tools
+Top priority: test coverage and edge cases
 
- Project goal status:
- 
-   BusyBox replacement: 5%;
-   CoreUtils replacement: 1%;
+Project goal status:
 
+  BusyBox replacement: 40%;
+  CoreUtils replacement: 30%;
 
 
- Bashnative currently provides:
 
-   basename bash cat clear date dirname editor find gopherd login ls man 
-   nano pico rootshell seq sh telnet true uptime vi vim whereis whoami 
-   curl wget [1]
+Bashnative currently provides:
+
+  [ arch base64 basename cat chmod clear cp curl cut date dirname du
+  echo editor env expand expr false find fold grep groups head hexdump
+  hostname id kill ln logname ls man md5sum mkdir mkfifo mknod mktemp
+  more mv nc nl nohup nproc od paste printenv printf pwd readlink
+  realpath reset rev rm rmdir seq sleep sort split stat strings sync
+  tail tee test timeout touch tr true tty uname unexpand uniq uptime
+  users wc wget whereis which whoami xargs yes [1]
 
 
- 
- Underlying philosophy:
+Build system:
 
-   Main reason; just for fun. 
+  build/build-bash.sh compiles a patched bash binary with the 'mk'
+  builtin.  The 'mk' builtin provides mkdir(2), mkfifo(3), and
+  mknod(2) syscalls that cannot be done in pure bash.
 
-   We do not recommend this collection ( or the memory model and runtime 
-   speed of the Bourne Again SHell ) for production systems.
+  Usage: cd build && ./build-bash.sh [--static] [-j4]
 
-	To provide a minimal system to be used in, for instance, chrooted 
+  The resulting bash binary + all scripts in bin/ is a complete
+  minimal userland.  One binary.  Everything else is a text file.
+
+
+
+Underlying philosophy:
+
+  Main reason; just for fun.
+
+  We do not recommend this collection ( or the memory model and runtime
+  speed of the Bourne Again SHell ) for production systems.
+
+	To provide a minimal system to be used in, for instance, chrooted
 	environments it can be, and already has proven so, an alternative to
 	bigger systems.
 
 	Open source userland:
-	No compilation necessary, not ever, a text editor is all you need.
+	No compilation necessary, not ever, a text editor is all you need. [2]
+
+
+Three-pronged approach for missing syscalls:
+
+  The 'mk' function (function/mk) automatically picks the best method:
+  1. mk builtin   - patched bashnative bash (zero overhead)
+  2. enable -f     - stock bash + compiled loadable (no fork per call)
+  3. external bins - /usr/bin/mkdir etc (works anywhere, but forks)
 
 
 
+[1] disclaimer: even though the programs are similar in functionality as
+    their named counterparts, they are not exact copies.  Furthermore some
+    are just links, for instance, vim, vi, nano and pico all link to the
+    editor program. These links are just there for usability reasons.
 
-
-
-
-
-
- [1] disclaimer: even though the programs are similar in functionality as
-     their named counterparts, they are not exact copies.  Furthermore some
-     are just links, for instance, vim, vi, nano and pico all link to the
-     editor program. These links are just there for usability reasons.
+[2] well, almost.  The 'mk' builtin for mkdir/mkfifo/mknod requires one
+    initial compilation of bash.  After that, everything is text files.

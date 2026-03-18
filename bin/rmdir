@@ -1,0 +1,15 @@
+#!/bin/bash
+# bashnative/rmdir - remove empty directories
+# NOTE: bash cannot call rmdir(2) natively. Uses external rmdir.
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: rmdir DIRECTORY..."
+      echo "Remove the DIRECTORY(ies), if they are empty."
+      exit 0
+   fi
+
+   command rmdir "$@"
+}
+
+main "$@"

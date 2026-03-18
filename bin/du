@@ -1,0 +1,48 @@
+#!/bin/bash
+# bashnative/du - estimate file space usage
+# Pure bash: walk directory tree, sum file sizes via $(<file) length
+# WARNING: text-based size only; not accurate for binary files
+
+SFLAG=0
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -s) SFLAG=1 ;;
+         --help|-h) echo "Usage: du [-s] [FILE]..."; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   for TARGET in "${@:-.}"; do
+      du_walk "$TARGET"
+   done
+}
+
+du_walk () {
+   local PATH="$1"
+   local TOTAL=0
+
+   if [[ -f "$PATH" ]] && [[ -r "$PATH" ]]; then
+      local CONTENT="$(<"$PATH")"
+      TOTAL=${#CONTENT}
+      (( SFLAG )) || echo -e "${TOTAL}\t${PATH}"
+   elif [[ -d "$PATH" ]]; then
+      for ITEM in "$PATH"/*; do
+         [[ -e "$ITEM" ]] || continue
+         if [[ -f "$ITEM" ]] && [[ -r "$ITEM" ]]; then
+            local CONTENT="$(<"$ITEM")"
+            local SZ=${#CONTENT}
+            TOTAL=$(( TOTAL + SZ ))
+            (( SFLAG )) || echo -e "${SZ}\t${ITEM}"
+         elif [[ -d "$ITEM" ]]; then
+            du_walk "$ITEM"
+         fi
+      done
+      echo -e "${TOTAL}\t${PATH}"
+   fi
+}
+
+main "$@"

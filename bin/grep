@@ -1,0 +1,127 @@
+#!/bin/bash
+# bashnative/grep - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+# Bash regex matching with =~  -- not fast, but it works
+
+IFLAG=0
+VFLAG=0
+CFLAG=0
+LFLAG=0
+NFLAG=0
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -i) IFLAG=1 ;;
+         -v) VFLAG=1 ;;
+         -c) CFLAG=1 ;;
+         -l) LFLAG=1 ;;
+         -n) NFLAG=1 ;;
+         -iv|-vi) IFLAG=1; VFLAG=1 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   PATTERN="$1"
+   shift
+
+   if [[ -z "$PATTERN" ]]; then
+      echo "grep: missing pattern" >&2
+      exit 2
+   fi
+
+   if (( IFLAG )); then
+      shopt -s nocasematch
+   fi
+
+   local RET=1
+
+   if [[ -z "$1" ]]; then
+      grep_stream "" && RET=0
+   else
+      MULTI=$(( $# > 1 ))
+      for FILE in "$@"; do
+         if [[ ! -r "$FILE" ]]; then
+            echo "grep: ${FILE}: No such file or directory" >&2
+            continue
+         fi
+         grep_stream "$FILE" < "$FILE" && RET=0
+      done
+   fi
+
+   if (( IFLAG )); then
+      shopt -u nocasematch
+   fi
+
+   exit $RET
+}
+
+grep_stream () {
+   local FNAME="$1"
+   local PREFIX=""
+   local LINENUM=0
+   local MATCHCOUNT=0
+   local FOUND=0
+
+   while IFS= read -r LINE; do
+      (( LINENUM++ ))
+      local MATCH=0
+      if [[ "$LINE" =~ $PATTERN ]]; then
+         MATCH=1
+      fi
+      # invert if -v
+      if (( VFLAG )); then
+         (( MATCH )) && MATCH=0 || MATCH=1
+      fi
+
+      if (( MATCH )); then
+         FOUND=1
+         (( MATCHCOUNT++ ))
+
+         if (( LFLAG )); then
+            echo "$FNAME"
+            return 0
+         fi
+
+         if (( ! CFLAG )); then
+            PREFIX=""
+            (( MULTI )) && [[ -n "$FNAME" ]] && PREFIX="${FNAME}:"
+            (( NFLAG )) && PREFIX="${PREFIX}${LINENUM}:"
+            echo "${PREFIX}${LINE}"
+         fi
+      fi
+   done
+
+   if (( CFLAG )); then
+      if [[ -n "$FNAME" ]]; then
+         echo "${FNAME}:${MATCHCOUNT}"
+      else
+         echo "$MATCHCOUNT"
+      fi
+   fi
+
+   (( FOUND )) && return 0 || return 1
+}
+
+helpmsg () {
+echo "Usage: grep [OPTION]... PATTERN [FILE]...
+Search for PATTERN in each FILE or standard input.
+
+  -i   ignore case distinctions
+  -v   invert match (select non-matching lines)
+  -c   print only a count of matching lines
+  -l   print only names of files with matches
+  -n   prefix each output line with its line number
+  -h   display this help and exit
+
+PATTERN is a bash extended regex (ERE).
+"
+}
+
+main "$@"

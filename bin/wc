@@ -1,0 +1,100 @@
+#!/bin/bash
+# bashnative/wc - Copyright 2013 Thijs Dalhuijsen <dalhuijsen@gmail.com>
+# This program is distributed under the terms of the GNU General Public License
+# (GPLv3) as published by the Free Software Foundation.
+# <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
+
+LFLAG=0
+WFLAG=0
+CFLAG=0
+SHOWALL=1
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -l) LFLAG=1; SHOWALL=0 ;;
+         -w) WFLAG=1; SHOWALL=0 ;;
+         -c) CFLAG=1; SHOWALL=0 ;;
+         -lwc|-lcw|-wlc|-wcl|-clw|-cwl) LFLAG=1; WFLAG=1; CFLAG=1; SHOWALL=0 ;;
+         --help|-h) helpmsg; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   if [[ -z "$1" ]]; then
+      wc_stream ""
+   else
+      local TLINES=0 TWORDS=0 TCHARS=0
+      for FILE in "$@"; do
+         if [[ ! -r "$FILE" ]]; then
+            echo "wc: ${FILE}: No such file or directory" >&2
+         else
+            wc_stream "$FILE" < "$FILE"
+         fi
+      done
+      if (( $# > 1 )); then
+         print_counts "$TLINES" "$TWORDS" "$TCHARS" "total"
+      fi
+   fi
+}
+
+wc_stream () {
+   local FNAME="$1"
+   local L=0 W=0 C=0
+
+   while IFS= read -r LINE; do
+      (( L++ ))
+      C=$(( C + ${#LINE} + 1 ))  # +1 for the newline
+      # count words: split on whitespace
+      local -a WORDS=($LINE)
+      W=$(( W + ${#WORDS[@]} ))
+   done
+
+   # handle last line without trailing newline
+   if [[ -n "$LINE" ]]; then
+      (( L++ ))
+      C=$(( C + ${#LINE} ))
+      local -a WORDS=($LINE)
+      W=$(( W + ${#WORDS[@]} ))
+   fi
+
+   TLINES=$(( TLINES + L ))
+   TWORDS=$(( TWORDS + W ))
+   TCHARS=$(( TCHARS + C ))
+
+   print_counts "$L" "$W" "$C" "$FNAME"
+}
+
+print_counts () {
+   local L="$1" W="$2" C="$3" NAME="$4"
+   local OUT=""
+
+   if (( SHOWALL )) || (( LFLAG )); then
+      printf "%7d" "$L"
+   fi
+   if (( SHOWALL )) || (( WFLAG )); then
+      printf "%8d" "$W"
+   fi
+   if (( SHOWALL )) || (( CFLAG )); then
+      printf "%8d" "$C"
+   fi
+   if [[ -n "$NAME" ]]; then
+      printf " %s" "$NAME"
+   fi
+   echo
+}
+
+helpmsg () {
+echo "Usage: wc [OPTION]... [FILE]...
+Print newline, word, and byte counts for each FILE.
+
+  -l   print the newline counts
+  -w   print the word counts
+  -c   print the byte counts
+  -h   display this help and exit
+"
+}
+
+main "$@"

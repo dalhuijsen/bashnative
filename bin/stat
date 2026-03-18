@@ -1,0 +1,50 @@
+#!/bin/bash
+# bashnative/stat - display file status
+# Pure bash can only get limited info; we use test operators and /proc
+
+main () {
+   if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+      echo "Usage: stat FILE..."
+      exit 0
+   fi
+
+   for FILE in "$@"; do
+      if [[ ! -e "$FILE" ]]; then
+         echo "stat: cannot stat '${FILE}': No such file or directory" >&2
+         continue
+      fi
+
+      echo "  File: ${FILE}"
+
+      # determine type
+      local TYPE="regular file"
+      [[ -d "$FILE" ]] && TYPE="directory"
+      [[ -L "$FILE" ]] && TYPE="symbolic link"
+      [[ -p "$FILE" ]] && TYPE="fifo"
+      [[ -b "$FILE" ]] && TYPE="block device"
+      [[ -c "$FILE" ]] && TYPE="character device"
+      [[ -S "$FILE" ]] && TYPE="socket"
+      echo "  Type: ${TYPE}"
+
+      # permissions (can detect but not read exact octal in pure bash)
+      local PERMS=""
+      [[ -r "$FILE" ]] && PERMS="${PERMS}r" || PERMS="${PERMS}-"
+      [[ -w "$FILE" ]] && PERMS="${PERMS}w" || PERMS="${PERMS}-"
+      [[ -x "$FILE" ]] && PERMS="${PERMS}x" || PERMS="${PERMS}-"
+      echo "Access: ${PERMS} (for current user)"
+
+      # size via bash: read file into var, measure length
+      if [[ -f "$FILE" ]] && [[ -r "$FILE" ]]; then
+         local CONTENT
+         CONTENT="$(<"$FILE")"
+         echo "  Size: ${#CONTENT} (approximate, text only)"
+      fi
+
+      # ownership from /proc if available
+      if [[ -r "/proc/self/status" ]]; then
+         echo "   Uid: $(id -u 2>/dev/null || echo unknown)"
+      fi
+   done
+}
+
+main "$@"

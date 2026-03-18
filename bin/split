@@ -1,0 +1,58 @@
+#!/bin/bash
+# bashnative/split - split a file into pieces
+
+LINES=1000
+PREFIX="x"
+
+main () {
+   while [[ "${1:0:1}" == "-" ]]; do
+      case "$1" in
+         -l) shift; LINES="$1" ;;
+         --help|-h) echo "Usage: split [-l LINES] [FILE [PREFIX]]"; exit 0 ;;
+         --) shift; break ;;
+         *) break ;;
+      esac
+      shift
+   done
+
+   local FILE="${1:--}"
+   [[ -n "$2" ]] && PREFIX="$2"
+
+   local PARTNUM=0 LINECOUNT=0 SUFFIX
+
+   SUFFIX=$(part_suffix $PARTNUM)
+   exec 3>"${PREFIX}${SUFFIX}"
+
+   if [[ "$FILE" == "-" ]]; then
+      split_stream
+   else
+      split_stream < "$FILE"
+   fi
+
+   exec 3>&-
+}
+
+split_stream () {
+   while IFS= read -r LINE; do
+      if (( LINECOUNT >= LINES )); then
+         exec 3>&-
+         (( PARTNUM++ ))
+         SUFFIX=$(part_suffix $PARTNUM)
+         exec 3>"${PREFIX}${SUFFIX}"
+         LINECOUNT=0
+      fi
+      echo "$LINE" >&3
+      (( LINECOUNT++ ))
+   done
+}
+
+part_suffix () {
+   # generate aa, ab, ac, ... az, ba, bb, ...
+   local N=$1
+   local A=$(( N / 26 ))
+   local B=$(( N % 26 ))
+   local ALPHA="abcdefghijklmnopqrstuvwxyz"
+   echo "${ALPHA:$A:1}${ALPHA:$B:1}"
+}
+
+main "$@"

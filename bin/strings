@@ -1,0 +1,34 @@
+#!/bin/bash
+# bashnative/strings - print the strings of printable characters in files
+
+MINLEN=4
+
+if [[ "$1" == "-n" ]]; then
+   shift; MINLEN="$1"; shift
+fi
+
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: strings [-n MIN] [FILE]"
+   echo "Print sequences of at least MIN (default 4) printable characters."
+   exit 0
+fi
+
+CURRENT=""
+
+while IFS= read -r -N 1 CHAR; do
+   # check if printable ASCII (space through tilde)
+   printf -v ORD '%d' "'$CHAR" 2>/dev/null
+   if (( ORD >= 32 && ORD <= 126 )); then
+      CURRENT="${CURRENT}${CHAR}"
+   else
+      if (( ${#CURRENT} >= MINLEN )); then
+         echo "$CURRENT"
+      fi
+      CURRENT=""
+   fi
+done < "${1:-/dev/stdin}"
+
+# flush last run
+if (( ${#CURRENT} >= MINLEN )); then
+   echo "$CURRENT"
+fi

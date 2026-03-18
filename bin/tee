@@ -1,0 +1,41 @@
+#!/bin/bash
+# bashnative/tee - read from stdin, write to stdout and files
+
+APPEND=
+
+if [[ "$1" == "-a" ]]; then
+   APPEND=1
+   shift
+fi
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+   echo "Usage: tee [-a] [FILE]..."
+   echo "Copy stdin to each FILE, and also to stdout."
+   echo "  -a  append to the given FILEs, do not overwrite"
+   exit 0
+fi
+
+# open file descriptors for all output files
+FDS=()
+FD=3
+for FILE in "$@"; do
+   if [[ -n "$APPEND" ]]; then
+      eval "exec ${FD}>>'${FILE}'"
+   else
+      eval "exec ${FD}>'${FILE}'"
+   fi
+   FDS+=($FD)
+   (( FD++ ))
+done
+
+# read and fan out
+while IFS= read -r LINE; do
+   echo "$LINE"
+   for F in "${FDS[@]}"; do
+      echo "$LINE" >&$F
+   done
+done
+
+# close fds
+for F in "${FDS[@]}"; do
+   eval "exec ${F}>&-"
+done

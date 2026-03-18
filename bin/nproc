@@ -1,0 +1,18 @@
+#!/bin/bash
+# bashnative/nproc - print number of processing units
+# Linux: /proc/cpuinfo or /sys/devices; macOS: sysctl hw.ncpu via $MACHTYPE
+if [[ -r /proc/cpuinfo ]]; then
+   N=0
+   while read -r LINE; do
+      [[ "$LINE" == processor* ]] && (( N++ ))
+   done < /proc/cpuinfo
+   echo "$N"
+elif [[ -r /sys/devices/system/cpu/online ]]; then
+   # format: 0-3 meaning 4 cpus
+   RANGE="$(</sys/devices/system/cpu/online)"
+   LAST="${RANGE##*-}"
+   echo $(( LAST + 1 ))
+else
+   # best guess
+   echo 1
+fi

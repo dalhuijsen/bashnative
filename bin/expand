@@ -1,0 +1,17 @@
+#!/bin/bash
+# bashnative/expand - convert tabs to spaces
+
+TABSTOP=8
+
+if [[ "$1" == "-t" ]]; then
+   shift; TABSTOP="$1"; shift
+fi
+
+# generate spaces string
+SPACES=""
+I=0
+while (( I++ < TABSTOP )); do SPACES="${SPACES} "; done
+
+while IFS= read -r LINE; do
+   echo "${LINE//$'\t'/$SPACES}"
+done < "${1:-/dev/stdin}"

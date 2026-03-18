@@ -1,0 +1,15 @@
+#!/bin/bash
+# bashnative/which - locate a command
+# type -P does exactly this: searches PATH and prints the path
+
+RET=0
+for CMD in "$@"; do
+   FOUND=$(type -P "$CMD" 2>/dev/null)
+   if [[ -n "$FOUND" ]]; then
+      echo "$FOUND"
+   else
+      echo "which: no ${CMD} in (${PATH})" >&2
+      RET=1
+   fi
+done
+exit $RET
