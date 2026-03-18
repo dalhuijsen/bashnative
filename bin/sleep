@@ -4,27 +4,22 @@
 # (GPLv3) as published by the Free Software Foundation.
 # <http://www.gnu.org/licenses/> <https://github.com/dalhuijsen/bashnative>
 
-# Pure bash sleep using read -t (integer seconds only, no fractions)
-# Trick: read with timeout on a fd that will never have data
+# Uses bash builtin sleep if available, otherwise read -t trick
 
 main () {
    if [[ -z "$1" ]] || [[ "$1" == "--help" ]]; then
-      echo "Usage: sleep SECONDS"
+      echo "Usage: sleep SECONDS[.FRAC]"
       [[ -z "$1" ]] && exit 1 || exit 0
    fi
 
    local SECS="$1"
+   SECS="${SECS%s}"   # strip trailing 's'
 
-   # strip trailing 's' if someone writes "5s"
-   SECS="${SECS%s}"
+   # try builtin sleep first (supports fractions)
+   builtin sleep "$SECS" 2>/dev/null && return 0
 
-   if [[ ! "$SECS" =~ ^[0-9]+$ ]]; then
-      echo "sleep: invalid time interval '$1'" >&2
-      exit 1
-   fi
-
-   # read -t N will wait N seconds on an empty pipe
-   read -t "$SECS" < <(:) 2>/dev/null || true
+   # fallback: read -t (bash supports fractional timeouts)
+   read -t "$SECS" <> <(:) 2>/dev/null || true
 }
 
 main "$@"
