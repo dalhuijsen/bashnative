@@ -35,13 +35,15 @@ main () {
       EDITROWS=$(( ROWS - 1 ))
 
       # draw
+      COLS="${COLUMNS:-80}"
       echo -ne '\e[H'
       local I=0
       while (( I < EDITROWS )); do
          local LINENUM=$(( TOP + I ))
          echo -ne "\e[$(( I + 1 ));1H\e[K"
          if (( LINENUM < TOTAL )); then
-            echo -n "${BUF[$LINENUM]}"
+            # truncate to terminal width to prevent wrapping
+            echo -n "${BUF[$LINENUM]:0:$COLS}"
          else
             echo -n "~"
          fi
