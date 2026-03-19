@@ -84,10 +84,10 @@ alias md='mkdir -p'
 alias rd='rmdir'
 alias du='du -s'
 
-# safety nets
-alias rm='rm -i'
-alias cp='cp -i'
-alias mv='mv -i'
+# safety nets (disabled: bashnative tools don't support -i yet)
+# alias rm='rm -i'
+# alias cp='cp -i'
+# alias mv='mv -i'
 
 # grep with color (our grep doesn't support --color yet, but alias is ready)
 # alias grep='grep --color=auto'

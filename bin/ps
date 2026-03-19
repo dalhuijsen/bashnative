@@ -42,9 +42,15 @@ main () {
       # get command name
       local CMD=""
       if [[ -r "${PROCDIR}/cmdline" ]]; then
-         CMD="$(< "${PROCDIR}/cmdline")"
-         # cmdline uses null bytes as separators
-         CMD="${CMD//$'\0'/ }"
+         # cmdline uses null bytes as separators; read stops at first \0
+         # so we use IFS-based word splitting on the raw bytes
+         local -a ARGS=()
+         while IFS= read -r -d '' WORD; do
+            ARGS+=("$WORD")
+         done < "${PROCDIR}/cmdline"
+         # if file didn't end with \0, capture trailing data
+         [[ -n "$WORD" ]] && ARGS+=("$WORD")
+         CMD="${ARGS[*]}"
       fi
       if [[ -z "$CMD" ]] && [[ -r "${PROCDIR}/comm" ]]; then
          CMD="[$(< "${PROCDIR}/comm")]"

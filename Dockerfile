@@ -36,6 +36,7 @@ COPY etc/profile /etc/profile
 ENV BASHNATIVE=/
 ENV TERM=xterm-256color
 ENV PATH=/bin:/games
+ENV HOME=/root
 
 # basic filesystem structure
 COPY --from=builder /etc/passwd /etc/passwd
@@ -43,5 +44,6 @@ COPY --from=builder /etc/group /etc/group
 # /tmp for mktemp etc
 COPY --from=builder /tmp /tmp
 
+WORKDIR /root
 ENTRYPOINT ["/bin/bash"]
 CMD ["--login"]
