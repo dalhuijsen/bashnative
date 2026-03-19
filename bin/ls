@@ -54,14 +54,17 @@ ls_dir () {
       ENTRIES+=("$ITEM")
    done
 
-   # hidden files
+   # hidden files (only when -a and dotglob is NOT set)
    if (( AFLAG )); then
-      for ITEM in "$DIR"/.*; do
-         case "${ITEM##*/}" in
-            .|..) (( AFLAG )) && ENTRIES+=("$ITEM") ;;
-            *)    ENTRIES+=("$ITEM") ;;
-         esac
-      done
+      # if dotglob is on, * already matched hidden files; add . and .. only
+      if shopt -q dotglob 2>/dev/null; then
+         ENTRIES+=("$DIR/." "$DIR/..")
+      else
+         for ITEM in "$DIR"/.*; do
+            [[ -e "$ITEM" || -L "$ITEM" ]] || continue
+            ENTRIES+=("$ITEM")
+         done
+      fi
    fi
 
    # sort entries by basename
@@ -100,20 +103,27 @@ ls_long () {
    [[ -L "$ITEM" ]] && TYPE="l"
    [[ -p "$ITEM" ]] && TYPE="p"
 
-   # permissions (best effort from test operators)
-   local PERMS=""
-   [[ -r "$ITEM" ]] && PERMS="${PERMS}r" || PERMS="${PERMS}-"
-   [[ -w "$ITEM" ]] && PERMS="${PERMS}w" || PERMS="${PERMS}-"
-   [[ -x "$ITEM" ]] && PERMS="${PERMS}x" || PERMS="${PERMS}-"
+   # permissions: best effort from test operators (per-user only)
+   local UP="" GP="" OP=""
+   [[ -r "$ITEM" ]] && UP="r" || UP="-"
+   [[ -w "$ITEM" ]] && UP="${UP}w" || UP="${UP}-"
+   [[ -x "$ITEM" ]] && UP="${UP}x" || UP="${UP}-"
+   # we can't distinguish group/other in pure bash; mirror user perms
+   GP="$UP" OP="$UP"
 
-   # size (text length for files)
+   # size
    local SIZE=0
    if [[ -f "$ITEM" ]] && [[ -r "$ITEM" ]]; then
-      local CONTENT="$(<"$ITEM" 2>/dev/null)"
-      SIZE=${#CONTENT}
+      # read file to measure size (only way in pure bash)
+      # only for small files to avoid memory issues
+      if [[ -r "$ITEM" ]]; then
+         local CONTENT
+         CONTENT="$(<"$ITEM" 2>/dev/null)" || CONTENT=""
+         SIZE=${#CONTENT}
+      fi
    fi
 
-   printf "%s%s %5d %s\n" "$TYPE" "${PERMS}${PERMS}${PERMS}" "$SIZE" "$NAME"
+   printf "%s%s%s%s %5d %s\n" "$TYPE" "$UP" "$GP" "$OP" "$SIZE" "$NAME"
 }
 
 ls_columns () {
